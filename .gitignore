@@ -1,0 +1,35 @@
+# Data: never commit raw datasets, prepared CSVs, or generated images.
+# Anyone can regenerate these with the scripts under data/.
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*.csv
+data/processed/images/
+data/processed/synthetic_images/
+
+# Model checkpoints & run outputs. The .gitkeep files are kept so a fresh
+# clone still has the directory layout the scripts and README refer to.
+checkpoints/*
+!checkpoints/.gitkeep
+outputs/*
+!outputs/.gitkeep
+*.pt
+*.pth
+
+# Vendored third-party source
+third_party/PanDerm/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
