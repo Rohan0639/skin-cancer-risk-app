@@ -36,3 +36,6 @@ Thumbs.db
 
 # Vendored PanDerm model definition (221 KB) is committed deliberately.
 !vendor/
+
+# The trained head is only ~1 MB and is needed for the deployed app to work.
+!checkpoints/risk_head.pt

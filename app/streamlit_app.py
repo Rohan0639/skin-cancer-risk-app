@@ -70,7 +70,19 @@ def find_sample_pairs() -> list[dict]:
     cfg = load_config()
     csv_path = cfg.path("paths.unified_csv")
     if not csv_path.exists():
-        return []
+        # Hosted deployments clone the repo without the prepared dataset (it is
+        # gitignored). The demo images are deterministic from the config seed,
+        # so regenerate them once rather than committing ~29 MB of blobs.
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "data"))
+            from make_demo_dataset import generate
+
+            with st.spinner("Preparing sample photos (first run only)..."):
+                generate(cfg, per_class=6, size=256, merge=True)
+        except Exception:  # noqa: BLE001 - samples are optional, never fatal
+            return []
+        if not csv_path.exists():
+            return []
 
     try:
         frame = pd.read_csv(csv_path)
