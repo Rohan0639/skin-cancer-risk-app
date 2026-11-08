@@ -147,11 +147,20 @@ backbone:
   panderm:
     # Clone https://github.com/SiyuanYan1/PanDerm into repo_dir, then place the
     # released checkpoint at `checkpoint`. See README > "Using PanDerm".
-    repo_dir: third_party/PanDerm
+    # A minimal, committed copy of PanDerm's model definition lives in
+    # vendor/panderm, so deployments work without cloning upstream. Point this
+    # at a full clone (third_party/PanDerm) if you need the rest of the repo.
+    repo_dir: vendor/panderm
     # PanDerm_Base_LP -> panderm_bb_data6_checkpoint-499.pth  (768-dim, ViT-B/16)
     # PanDerm_Large_LP -> panderm_ll_data6_checkpoint-499.pth (1024-dim, ViT-L/16)
     model_name: PanDerm_Base_LP
     checkpoint: checkpoints/panderm/panderm_bb_data6_checkpoint-499.pth
+    # If the checkpoint is absent locally, download it from this Hugging Face
+    # MODEL repo on first run (weights are stored fp16 to halve the download;
+    # they load into the fp32 model with ~7e-5 difference in output).
+    # Set hf_repo to null to disable downloading.
+    hf_repo: rohan0639/panderm-base-lp-fp16
+    hf_filename: panderm_bb_data6_checkpoint-499-fp16.pth
     feature_dim: 768
 
   fallback:

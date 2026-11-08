@@ -77,10 +77,10 @@ class PanDermBackbone(FeatureBackbone):
                 f"{repo_dir.as_posix()}"
             )
         if not ckpt_path.exists():
-            raise BackboneUnavailable(
-                f"PanDerm checkpoint not found at {ckpt_path}. "
-                "Download it from the PanDerm repository's release links."
-            )
+            # Deployment targets (Streamlit Cloud, containers) cannot ship a
+            # 328 MB file in the git repo, so optionally pull it from a
+            # Hugging Face model repo on first run and cache it there.
+            ckpt_path = self._fetch_checkpoint(cfg, ckpt_path)
 
         builder_name, expected_dim = PANDERM_VARIANTS[model_name]
         build_fn = self._import_builder(repo_dir, builder_name)
@@ -104,6 +104,54 @@ class PanDermBackbone(FeatureBackbone):
         logger.info("Loaded PanDerm backbone: %s", self.describe())
 
     # -- loading helpers ---------------------------------------------------
+    @staticmethod
+    def _fetch_checkpoint(cfg: Config, ckpt_path: Path) -> Path:
+        """Download the checkpoint from Hugging Face when it is not on disk.
+
+        Hosted deployments cannot keep a 328 MB file in git, so
+        ``backbone.panderm.hf_repo`` names a Hugging Face **model** repo to pull
+        it from on first run. The weights may be stored there in fp16 (half the
+        download); ``load_state_dict`` casts them back to the model's fp32
+        parameters on load, which costs about 7e-5 in output probability.
+
+        Args:
+            cfg: Loaded project config.
+            ckpt_path: Where the checkpoint was expected locally.
+
+        Returns:
+            Path to the downloaded file.
+
+        Raises:
+            BackboneUnavailable: If no ``hf_repo`` is configured, or the
+                download fails. The factory turns this into the usual fallback.
+        """
+        hf_repo = cfg.get("backbone.panderm.hf_repo", None)
+        if not hf_repo:
+            raise BackboneUnavailable(
+                f"PanDerm checkpoint not found at {ckpt_path}, and no "
+                "backbone.panderm.hf_repo is configured to download it from. "
+                "Download it from the PanDerm repository's release links."
+            )
+
+        hf_filename = str(cfg.get("backbone.panderm.hf_filename", ckpt_path.name))
+        logger.info("Checkpoint missing locally; downloading %s/%s from Hugging Face "
+                    "(first run only)...", hf_repo, hf_filename)
+        try:
+            from huggingface_hub import hf_hub_download
+
+            downloaded = hf_hub_download(
+                repo_id=str(hf_repo),
+                filename=hf_filename,
+                repo_type="model",
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise BackboneUnavailable(
+                f"Could not download the PanDerm checkpoint from {hf_repo}: {exc}"
+            ) from exc
+
+        logger.info("Downloaded PanDerm checkpoint -> %s", downloaded)
+        return Path(downloaded)
+
     @staticmethod
     def _import_builder(repo_dir: Path, builder_name: str) -> Callable[[], nn.Module]:
         """Import PanDerm's model builder from the cloned repository.

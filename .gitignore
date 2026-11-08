@@ -33,3 +33,6 @@ env/
 Thumbs.db
 .vscode/
 .idea/
+
+# Vendored PanDerm model definition (221 KB) is committed deliberately.
+!vendor/

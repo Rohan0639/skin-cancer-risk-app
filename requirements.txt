@@ -30,6 +30,9 @@ grad-cam>=1.5
 open_clip_torch>=2.24
 gdown>=5.0
 
+# Model weight download (PanDerm checkpoint)
+huggingface_hub>=0.23
+
 # UI
 streamlit>=1.30
 
