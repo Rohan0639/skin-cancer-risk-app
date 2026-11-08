@@ -1,0 +1,193 @@
+"""Export PanDerm for in-browser inference: ViT trunk to ONNX, head to JSON.
+
+Two artefacts land in ``--out``:
+
+* ``panderm_vit.onnx``  -- the ViT trunk. Input a preprocessed image, output
+  all 197 tokens ``(1, 197, 768)``: the CLS token followed by a 14x14 grid of
+  patch tokens.
+* ``head.json``         -- the fusion head's weights, a few hundred KB.
+
+**Why the split.** The head is tiny but has to run twice (once on the CLS token
+for the prediction, once per patch token for the relevance map). Keeping both
+copies inside the ONNX graph produced duplicate Gemm nodes that the dynamic
+quantiser turned into a MatMulInteger graph with mismatched dimensions and
+would not load. Exporting only the trunk leaves a clean, uniform transformer
+that quantises reliably, and the head is small enough to reimplement in a
+dozen lines of JavaScript.
+
+**How the browser gets a saliency map.** Grad-CAM needs a backward pass, and
+ONNX Runtime Web does inference only. Because the head is an MLP over a
+CLS-pooled ViT, applying it to each patch token instead yields a
+class-discriminative per-patch relevance map from the same forward pass. It
+answers Grad-CAM's question without gradients, and is labelled a token
+relevance map rather than Grad-CAM.
+
+Usage::
+
+    python scripts/export_onnx.py --out web/model
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.config import load_config  # noqa: E402
+from src.dataset import metadata_dim  # noqa: E402
+from src.model.risk_classifier import load_risk_classifier  # noqa: E402
+from src.utils import get_logger  # noqa: E402
+
+logger = get_logger("export_onnx")
+
+
+class TrunkWrapper(nn.Module):
+    """ViT trunk only: image -> all tokens ``(B, 197, 768)``."""
+
+    def __init__(self, vit: nn.Module) -> None:
+        super().__init__()
+        self.vit = vit
+
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        """Mirror PanDerm's ``forward_features`` but stop before pooling."""
+        vit = self.vit
+        x = vit.patch_embed(image)
+        batch = x.shape[0]
+        cls = vit.cls_token.expand(batch, -1, -1)
+        x = torch.cat((cls, x), dim=1)
+        if vit.pos_embed is not None:
+            x = x + vit.pos_embed.expand(batch, -1, -1).type_as(x)
+        x = vit.pos_drop(x)
+        rel_pos_bias = vit.rel_pos_bias() if vit.rel_pos_bias is not None else None
+        for blk in vit.blocks:
+            x = blk(x, rel_pos_bias=rel_pos_bias)
+        return vit.norm(x)
+
+
+def dump_head(head: nn.Module, cfg) -> dict:
+    """Serialise the fusion head's weights into a JSON-safe dict.
+
+    The JS side replays exactly these ops:
+    ``image_proj`` (Linear -> ReLU -> LayerNorm), ``metadata_encoder``
+    (Linear -> ReLU -> LayerNorm), concat, then the MLP's
+    (Linear -> ReLU -> BatchNorm) blocks and a final Linear.
+    BatchNorm is folded to a plain scale/shift since inference uses running
+    statistics.
+    """
+    def arr(t: torch.Tensor) -> list:
+        return t.detach().cpu().numpy().astype(np.float32).ravel().tolist()
+
+    def linear(mod: nn.Linear) -> dict:
+        return {"w": arr(mod.weight), "b": arr(mod.bias),
+                "in": mod.in_features, "out": mod.out_features}
+
+    def layernorm(mod: nn.LayerNorm) -> dict:
+        return {"g": arr(mod.weight), "b": arr(mod.bias), "eps": float(mod.eps)}
+
+    def batchnorm(mod: nn.BatchNorm1d) -> dict:
+        # Fold to y = x * scale + shift using the running statistics.
+        var = mod.running_var.detach().cpu().numpy().astype(np.float64)
+        mean = mod.running_mean.detach().cpu().numpy().astype(np.float64)
+        gamma = mod.weight.detach().cpu().numpy().astype(np.float64)
+        beta = mod.bias.detach().cpu().numpy().astype(np.float64)
+        scale = gamma / np.sqrt(var + mod.eps)
+        shift = beta - mean * scale
+        return {"scale": scale.astype(np.float32).tolist(),
+                "shift": shift.astype(np.float32).tolist()}
+
+    out: dict = {
+        "classes": list(cfg.get("labels.risk_classes")),
+        "metadata_dim": metadata_dim(cfg),
+        "use_metadata": bool(head.use_metadata),
+        "image_proj": {
+            "linear": linear(head.image_proj[0]),
+            "norm": layernorm(head.image_proj[2]),
+        },
+        "mlp": [],
+    }
+
+    if head.use_metadata:
+        enc = head.metadata_encoder.net
+        out["metadata_encoder"] = {
+            "linear": linear(enc[0]),
+            "norm": layernorm(enc[2]),
+        }
+
+    # Walk the MLP: Linear, ReLU, BatchNorm1d, Dropout, ... , final Linear.
+    layers = list(head.mlp)
+    i = 0
+    while i < len(layers):
+        mod = layers[i]
+        if isinstance(mod, nn.Linear):
+            block: dict = {"linear": linear(mod), "relu": False, "bn": None}
+            j = i + 1
+            while j < len(layers) and not isinstance(layers[j], nn.Linear):
+                if isinstance(layers[j], nn.ReLU):
+                    block["relu"] = True
+                elif isinstance(layers[j], nn.BatchNorm1d):
+                    block["bn"] = batchnorm(layers[j])
+                j += 1
+            out["mlp"].append(block)
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", default="web/model")
+    parser.add_argument("--opset", type=int, default=17)
+    args = parser.parse_args()
+
+    cfg = load_config()
+    model = load_risk_classifier(cfg=cfg, strict=True).eval()
+    trunk = TrunkWrapper(model.backbone.model).eval()
+
+    size = int(cfg.get("backbone.image_size", 224))
+    image = torch.randn(1, 3, size, size)
+    with torch.no_grad():
+        ref_tokens = trunk(image)
+    logger.info("tokens %s", tuple(ref_tokens.shape))
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    onnx_path = out_dir / "panderm_vit.onnx"
+
+    torch.onnx.export(
+        trunk, (image,), str(onnx_path),
+        input_names=["image"], output_names=["tokens"],
+        opset_version=args.opset, do_constant_folding=True, dynamo=False,
+    )
+    logger.info("Wrote %s (%.0f MB)", onnx_path.name, onnx_path.stat().st_size / 1048576)
+
+    head_path = out_dir / "head.json"
+    head_path.write_text(json.dumps(dump_head(model.head, cfg)), encoding="utf-8")
+    logger.info("Wrote %s (%.1f MB)", head_path.name, head_path.stat().st_size / 1048576)
+
+    # Parity: ONNX trunk vs torch trunk.
+    import onnxruntime as ort
+
+    sess = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
+    got = sess.run(None, {"image": image.numpy()})[0]
+    diff = float(np.abs(got - ref_tokens.numpy()).max())
+    logger.info("trunk max abs diff vs torch: %.2e", diff)
+    if diff > 1e-3:
+        logger.error("ONNX trunk diverges from PyTorch.")
+        return 1
+
+    print(f"\nOK  {onnx_path} ({onnx_path.stat().st_size/1048576:.0f} MB)")
+    print(f"    {head_path} ({head_path.stat().st_size/1048576:.1f} MB)")
+    print(f"    trunk diff {diff:.2e}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

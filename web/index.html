@@ -4,126 +4,105 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Skin Lesion Risk Screening</title>
-<meta name="description" content="Explainable skin-lesion risk screening with PanDerm, Grad-CAM and the ABCDE rule. A student research prototype — not a medical device.">
+<meta name="description" content="Explainable skin-lesion risk screening running entirely in your browser with PanDerm. A student research prototype — not a medical device.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
+<!-- ONNX Runtime Web is self-hosted: COEP require-corp (needed for WASM
+     threads) would block a cross-origin CDN script. -->
+<script src="./vendor/ort/ort.min.js"></script>
 <style>
   :root{
-    --bg:#ffffff; --surface:#f6f7f9; --border:#e3e6ea;
-    --text:#16191d; --muted:#5b6672;
+    --bg:#fff; --surface:#f6f7f9; --border:#e3e6ea; --text:#16191d; --muted:#5b6672;
     --accent:#2563eb; --low:#15803d; --mod:#b45309; --high:#b91c1c;
-    --warn-bg:#fff4f4; --warn-border:#f0b4b4; --warn-text:#8c1d1d;
-    --radius:12px; --maxw:68rem;
+    --warn-bg:#fff4f4; --warn-border:#f0b4b4; --warn-text:#8c1d1d; --radius:12px;
   }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#0f1216; --surface:#171b21; --border:#282f38;
-      --text:#e8ecf1; --muted:#9aa6b4;
-      --accent:#6ea8ff; --low:#4ade80; --mod:#fbbf24; --high:#f87171;
-      --warn-bg:#2a1518; --warn-border:#6b2b2b; --warn-text:#ffb4b4;
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#0f1216; --surface:#171b21; --border:#282f38;
-    --text:#e8ecf1; --muted:#9aa6b4;
+  @media (prefers-color-scheme:dark){ :root:not([data-theme=light]){
+    --bg:#0f1216; --surface:#171b21; --border:#282f38; --text:#e8ecf1; --muted:#9aa6b4;
+    --accent:#6ea8ff; --low:#4ade80; --mod:#fbbf24; --high:#f87171;
+    --warn-bg:#2a1518; --warn-border:#6b2b2b; --warn-text:#ffb4b4;
+  }}
+  :root[data-theme=dark]{
+    --bg:#0f1216; --surface:#171b21; --border:#282f38; --text:#e8ecf1; --muted:#9aa6b4;
     --accent:#6ea8ff; --low:#4ade80; --mod:#fbbf24; --high:#f87171;
     --warn-bg:#2a1518; --warn-border:#6b2b2b; --warn-text:#ffb4b4;
   }
-
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 16px}
-  a{color:var(--accent)}
-  h1,h2,h3{line-height:1.25; margin:0 0 .5em}
-  h1{font-size:clamp(2rem,5vw,3.1rem); letter-spacing:-.02em}
-  h2{font-size:clamp(1.4rem,3vw,1.9rem); letter-spacing:-.01em; margin-top:0}
-  h3{font-size:1.05rem}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:62rem;margin:0 auto;padding:0 16px}
+  h1{font-size:clamp(1.9rem,5vw,2.9rem);letter-spacing:-.02em;margin:.2em 0}
+  h2{font-size:clamp(1.3rem,3vw,1.7rem);margin:0 0 .5em}
+  h3{font-size:1.05rem;margin:1.6em 0 .5em}
   p{margin:0 0 1em}
-  code{
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:.88em; background:var(--surface); padding:.12em .4em;
-    border-radius:5px; border:1px solid var(--border);
-  }
-
-  header{padding:clamp(2.5rem,7vw,4.5rem) 0 1.5rem; text-align:center}
-  .eyebrow{
-    display:inline-block; font-size:.78rem; letter-spacing:.12em;
-    text-transform:uppercase; color:var(--muted); margin-bottom:1rem;
-    border:1px solid var(--border); padding:.35rem .8rem; border-radius:999px;
-  }
-  .lede{font-size:clamp(1.02rem,2.2vw,1.2rem); color:var(--muted); max-width:46rem; margin:0 auto 1.6rem}
-
-  .disclaimer{
-    background:var(--warn-bg); border:1.5px solid var(--warn-border);
-    color:var(--warn-text); border-radius:var(--radius);
-    padding:1rem 1.15rem; margin:1.5rem auto 0; max-width:52rem; text-align:left;
-  }
-  .disclaimer strong{display:block; margin-bottom:.25rem}
-
-  .cta{display:flex; gap:.7rem; justify-content:center; flex-wrap:wrap; margin:1.8rem 0 0}
-  .btn{
-    display:inline-block; padding:.7rem 1.25rem; border-radius:9px;
-    text-decoration:none; font-weight:600; font-size:.95rem;
-    border:1px solid var(--border); color:var(--text); background:var(--surface);
-  }
-  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
-  .btn:hover{filter:brightness(1.07)}
-
-  section{padding:clamp(2.2rem,5vw,3.4rem) 0; border-top:1px solid var(--border)}
-
-  .frame{
-    border:1px solid var(--border); border-radius:var(--radius);
-    overflow:hidden; background:var(--surface); margin-top:1.2rem;
-  }
-  .frame iframe{display:block; width:100%; height:820px; border:0; background:var(--bg)}
-  @media (max-width:640px){ .frame iframe{height:680px} }
-  .frame-note{
-    padding:.6rem 1rem; font-size:.85rem; color:var(--muted);
-    border-top:1px solid var(--border); background:var(--bg);
-  }
-
-  .grid{display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))}
-  .card{
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); padding:1.1rem 1.2rem;
-  }
-  .card .n{
-    display:inline-grid; place-items:center; width:1.7rem; height:1.7rem;
-    border-radius:6px; background:var(--accent); color:#fff;
-    font-size:.82rem; font-weight:700; margin-bottom:.6rem;
-  }
-  .card p{margin:0; font-size:.93rem; color:var(--muted)}
-
-  .shots{display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr)); margin-top:1.2rem}
-  figure{margin:0}
-  figure img{width:100%; height:auto; display:block; border:1px solid var(--border); border-radius:var(--radius)}
-  figcaption{font-size:.85rem; color:var(--muted); margin-top:.5rem}
-
-  table{width:100%; border-collapse:collapse; margin-top:1rem; font-size:.93rem}
-  th,td{text-align:left; padding:.6rem .7rem; border-bottom:1px solid var(--border); vertical-align:top}
-  th{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted)}
-  .pill{display:inline-block; padding:.12rem .55rem; border-radius:999px; font-size:.78rem; font-weight:700}
-  .pill.low{background:color-mix(in srgb,var(--low) 16%,transparent); color:var(--low)}
-  .pill.mod{background:color-mix(in srgb,var(--mod) 16%,transparent); color:var(--mod)}
-  .pill.high{background:color-mix(in srgb,var(--high) 16%,transparent); color:var(--high)}
-
-  .callout{
-    border-left:4px solid var(--mod); background:var(--surface);
-    padding:.9rem 1.1rem; border-radius:0 var(--radius) var(--radius) 0; margin:1.2rem 0;
-  }
-  .callout p:last-child{margin-bottom:0}
-
-  ul.clean{margin:0; padding-left:1.15rem}
-  ul.clean li{margin-bottom:.5rem}
-
-  footer{
-    border-top:1px solid var(--border); padding:2rem 0 3rem;
-    color:var(--muted); font-size:.88rem;
-  }
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em;
+    background:var(--surface);padding:.1em .4em;border-radius:5px;border:1px solid var(--border)}
+  header{padding:3rem 0 1rem;text-align:center}
+  .eyebrow{display:inline-block;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);border:1px solid var(--border);padding:.3rem .8rem;border-radius:999px}
+  .lede{color:var(--muted);max-width:44rem;margin:.6rem auto 1.4rem;font-size:1.05rem}
+  .disclaimer{background:var(--warn-bg);border:1.5px solid var(--warn-border);color:var(--warn-text);
+    border-radius:var(--radius);padding:1rem 1.15rem;margin:1.4rem auto 0;max-width:50rem;text-align:left}
+  .disclaimer strong{display:block;margin-bottom:.25rem}
+  section{padding:2.2rem 0;border-top:1px solid var(--border)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem}
+  .row{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))}
+  label{display:block;font-size:.84rem;font-weight:600;margin-bottom:.3rem}
+  select,input[type=number]{width:100%;padding:.55rem .6rem;border-radius:8px;
+    border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit;font-size:.95rem}
+  .file{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin:.4rem 0 0}
+  .file input{display:none}
+  .fbtn{display:inline-block;padding:.5rem 1rem;border:1px solid var(--border);border-radius:8px;
+    background:var(--bg);cursor:pointer;font-size:.92rem;font-weight:600}
+  .fbtn:hover{border-color:var(--accent)}
+  .fname{font-size:.86rem;color:var(--muted)}
+  button.run{margin-top:1.1rem;padding:.75rem 1.5rem;border:0;border-radius:9px;
+    background:var(--accent);color:#fff;font:inherit;font-weight:700;cursor:pointer;font-size:1rem}
+  button.run:disabled{opacity:.5;cursor:not-allowed}
+  .samples{margin-top:.9rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .samples button{padding:.4rem .85rem;border:1px solid var(--border);border-radius:999px;
+    background:var(--bg);color:var(--text);font:inherit;font-size:.85rem;cursor:pointer}
+  .samples button:hover{border-color:var(--accent)}
+  #loading{margin-top:1rem}
+  .track{height:7px;background:var(--border);border-radius:99px;overflow:hidden}
+  .track>div{height:100%;width:0;background:var(--accent);transition:width .25s}
+  #status{margin-top:.8rem;font-size:.88rem}
+  .ok{color:var(--low);font-weight:600}
+  .bad{color:var(--high);font-weight:600}
+  .verdict{border-left:6px solid var(--muted);background:var(--surface);
+    padding:1rem 1.2rem;border-radius:0 var(--radius) var(--radius) 0;margin-bottom:1rem}
+  .verdict.low{border-color:var(--low)} .verdict.moderate{border-color:var(--mod)}
+  .verdict.high{border-color:var(--high)}
+  .vlabel{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .vlevel{font-size:2rem;font-weight:800;line-height:1.1}
+  .verdict.low .vlevel{color:var(--low)} .verdict.moderate .vlevel{color:var(--mod)}
+  .verdict.high .vlevel{color:var(--high)}
+  .vrec{margin:.5rem 0 0}
+  .metrics{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));margin-bottom:1rem}
+  .metrics div{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:.6rem .8rem}
+  .metrics span{display:block;font-size:.76rem;color:var(--muted)}
+  .metrics strong{font-size:1.3rem}
+  .escalate{background:var(--surface);border:1px solid var(--mod);border-radius:9px;padding:.7rem .95rem;margin-bottom:1rem}
+  .panes{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))}
+  .panes figure{margin:0}
+  .panes figcaption{font-weight:600;margin-bottom:.4rem}
+  .panes canvas{width:100%;height:auto;border:1px solid var(--border);border-radius:var(--radius);display:block}
+  ul.abcde{list-style:none;padding:0;margin:0}
+  ul.abcde li{border:1px solid var(--border);border-radius:9px;padding:.7rem .9rem;margin-bottom:.5rem;background:var(--surface)}
+  ul.abcde b{display:inline-block;min-width:1.3rem;font-size:1.05rem}
+  ul.abcde .t{font-weight:600}
+  ul.abcde em{font-style:normal;font-size:.78rem;padding:.1rem .5rem;border-radius:99px;margin-left:.4rem}
+  .flag{background:color-mix(in srgb,var(--high) 18%,transparent);color:var(--high)}
+  .fine{background:color-mix(in srgb,var(--low) 18%,transparent);color:var(--low)}
+  .na{background:var(--border);color:var(--muted)}
+  ul.abcde p{margin:.4rem 0 0;font-size:.92rem;color:var(--muted)}
+  ul.notes{padding-left:1.1rem} ul.notes li{margin-bottom:.45rem;font-size:.92rem;color:var(--muted)}
+  .okbox{background:color-mix(in srgb,var(--low) 12%,transparent);padding:.7rem .95rem;border-radius:9px}
+  .warnbox{background:color-mix(in srgb,var(--mod) 14%,transparent);padding:.7rem .95rem;border-radius:9px}
+  .muted{color:var(--muted)} .small{font-size:.85rem}
+  table{width:100%;border-collapse:collapse;font-size:.93rem}
+  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}
+  th{font-size:.76rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  footer{border-top:1px solid var(--border);padding:2rem 0 3rem;color:var(--muted);font-size:.87rem}
   footer a{color:var(--muted)}
 </style>
 </head>
@@ -134,17 +113,10 @@
     <span class="eyebrow">Student research prototype</span>
     <h1>Skin Lesion Risk Screening</h1>
     <p class="lede">
-      Upload a phone photo of a skin lesion and a few details. Get a risk level,
-      a heatmap of what the model looked at, and a plain-language explanation
-      built on the dermatological ABCDE rule.
+      Explainable risk assessment powered by PanDerm, a dermatology foundation
+      model — running <strong>entirely in your browser</strong>. Your photo is
+      never uploaded anywhere.
     </p>
-
-    <div class="cta">
-      <a class="btn primary" href="#demo">Try the live demo</a>
-      <a class="btn" href="https://github.com/Rohan0639/skin-cancer-risk-app">Source on GitHub</a>
-      <a class="btn" href="https://huggingface.co/rohan0639/panderm-base-lp-fp16">Model weights</a>
-    </div>
-
     <div class="disclaimer">
       <strong>⚠️ This is not a medical device.</strong>
       It has not been clinically validated, it does not provide a diagnosis, and
@@ -155,153 +127,153 @@
   </div>
 </header>
 
-<section id="demo">
+<section>
   <div class="wrap">
-    <h2>Live demo</h2>
-    <p>
-      No photo to hand? Tick <strong>“Use a sample photo”</strong> inside the app
-      to run the whole pipeline on a bundled example. The first load takes a
-      moment while the model wakes up.
-    </p>
-    <div class="frame">
-      <iframe
-        src="https://skin-cancer-risk-screening.streamlit.app/?embed=true"
-        title="Skin Lesion Risk Screening app"
-        loading="lazy"
-        allow="camera"></iframe>
-      <div class="frame-note">
-        Running on Streamlit Cloud ·
-        <a href="https://skin-cancer-risk-screening.streamlit.app/" target="_blank" rel="noopener">open full screen ↗</a>
+    <h2>Analyse a lesion</h2>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="age">Age</label>
+          <input type="number" id="age" value="45" min="0" max="110">
+        </div>
+        <div>
+          <label for="sex">Sex</label>
+          <select id="sex">
+            <option value="unknown" selected>Prefer not to say</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+        </div>
+        <div>
+          <label for="site">Where on the body?</label>
+          <select id="site">
+            <option value="trunk" selected>Trunk (chest, back, abdomen)</option>
+            <option value="head_neck">Head or neck</option>
+            <option value="upper_extremity">Arm or hand</option>
+            <option value="lower_extremity">Leg or foot</option>
+            <option value="palms_soles">Palm, sole or nail</option>
+            <option value="genital">Genital area</option>
+            <option value="unknown">Not sure</option>
+          </select>
+        </div>
       </div>
+
+      <h3>Photo of the lesion</h3>
+      <div class="file">
+        <label class="fbtn" for="photo">Choose photo</label>
+        <input type="file" id="photo" accept="image/*">
+        <span class="fname" id="photoName">No file chosen</span>
+      </div>
+
+      <h3>Optional: an earlier photo of the same lesion</h3>
+      <p class="muted small" style="margin:.2rem 0 .4rem">
+        Change over time is one of the strongest warning signs, and the one
+        thing that cannot be judged from a single photo.
+      </p>
+      <div class="file">
+        <label class="fbtn" for="prev">Choose earlier photo</label>
+        <input type="file" id="prev" accept="image/*">
+        <span class="fname" id="prevName"></span>
+      </div>
+
+      <h3>Optional: give the photo a scale</h3>
+      <p class="muted small" style="margin:.2rem 0 .4rem">
+        A photo carries no scale, so millimetres can't be measured unless you
+        say how wide the picture is in real life. Photograph a ruler beside the
+        lesion to use this.
+      </p>
+      <label style="font-weight:400">
+        <input type="checkbox" id="useScale"> I know how wide the photo is
+      </label>
+      <div id="scaleWrap" hidden style="margin-top:.5rem;max-width:16rem">
+        <label for="frameMm">Photo width in real life (mm)</label>
+        <input type="number" id="frameMm" value="40" min="5" max="500" step="5">
+      </div>
+
+      <button class="run" id="run" disabled>Analyse photo</button>
+
+      <div class="samples">
+        <span class="muted small">No photo to hand?</span>
+        <button data-sample="./samples/low.png">Low example</button>
+        <button data-sample="./samples/moderate.png">Moderate example</button>
+        <button data-sample="./samples/high.png">High example</button>
+      </div>
+      <p class="muted small" style="margin-top:.6rem">
+        The bundled examples are <strong>synthetic</strong> — procedurally drawn
+        blobs, not real lesions.
+      </p>
+
+      <div id="loading" hidden>
+        <div class="track"><div id="loadBar"></div></div>
+        <p class="muted small" id="loadLabel" style="margin:.5rem 0 0">Preparing…</p>
+        <p class="muted small" style="margin:.2rem 0 0">
+          First run downloads the 83 MB model once, then it is cached by your browser.
+        </p>
+      </div>
+      <div id="status"></div>
     </div>
+
+    <div id="result" hidden style="margin-top:1.5rem"></div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
     <h2>How it works</h2>
-    <p>Eight stages, in a deliberate order. The quality gate runs first, because a
-      confident-looking number computed from an unusable photo is the worst
-      possible output for a tool like this.</p>
-    <div class="grid">
-      <div class="card"><span class="n">1</span><h3>Quality gate</h3>
-        <p>Blur, exposure, contrast, resolution and framing. A bad photo gets a retake prompt, not a risk score.</p></div>
-      <div class="card"><span class="n">2</span><h3>Segmentation</h3>
-        <p>Flat-fielded Otsu threshold with GrabCut refinement, so uneven flash lighting can't swallow the lesion.</p></div>
-      <div class="card"><span class="n">3</span><h3>PanDerm features</h3>
-        <p>A dermatology foundation model (ViT-B/16) turns the photo into a 768-dimensional embedding.</p></div>
-      <div class="card"><span class="n">4</span><h3>Metadata fusion</h3>
-        <p>Age, sex and body site are encoded and fused with the image embedding before classification.</p></div>
-      <div class="card"><span class="n">5</span><h3>Grad-CAM</h3>
-        <p>Shows where the model actually looked — and flags when that was no better than chance.</p></div>
-      <div class="card"><span class="n">6</span><h3>ABCDE</h3>
-        <p>Asymmetry, border, colour, diameter and evolving, measured classically and independently of the network.</p></div>
-      <div class="card"><span class="n">7</span><h3>Change detection</h3>
-        <p>Compares against an earlier photo, correcting for camera distance, angle and lighting colour.</p></div>
-      <div class="card"><span class="n">8</span><h3>One report</h3>
-        <p>A single recommendation, downloadable as Markdown, HTML or JSON.</p></div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <h2>Explainability</h2>
     <p>
-      Two independent explanations, deliberately. The heatmap shows what the
-      network keyed on; the ABCDE measurements come from classical computer
-      vision and never consult the network. When they disagree, the report says
-      so rather than inventing a justification for the model.
+      Everything below happens on your device. The page downloads the model
+      once and runs it with ONNX Runtime Web; no image is ever transmitted.
     </p>
-    <div class="shots">
-      <figure>
-        <img src="/shots/result.png" alt="Risk level, confidence breakdown, original photo and Grad-CAM heatmap side by side" loading="lazy">
-        <figcaption>Risk level and confidence, with the Grad-CAM heatmap beside the original photo.</figcaption>
-      </figure>
-      <figure>
-        <img src="/shots/abcde.png" alt="ABCDE criteria listed with pass, attention and not-measured markers" loading="lazy">
-        <figcaption>Each ABCDE criterion marked as unremarkable, worth attention, or not measurable.</figcaption>
-      </figure>
-    </div>
-
-    <div class="callout">
-      <p><strong>“Not measurable” is reported, never hidden.</strong>
-      A photo carries no scale, so <em>Diameter</em> is only scored if you tell the
-      app how wide the frame is in real life. <em>Evolving</em> needs an earlier
-      photo. Both are shown as <code>?</code> rather than quietly counted as
-      reassuring — an absent warning is not the same as a clean result.</p>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <h2>Risk levels</h2>
-    <p>The source datasets' diagnosis labels are collapsed into three triage
-      levels. The mapping lives in an editable config file, not in code.</p>
     <table>
-      <thead><tr><th>Level</th><th>Covers</th><th>Recommendation</th></tr></thead>
       <tbody>
-        <tr><td><span class="pill low">Low</span></td>
-            <td>Ordinary nevus, seborrheic keratosis, dermatofibroma, vascular lesions</td>
-            <td>Keep monitoring; re-photograph in ~3 months</td></tr>
-        <tr><td><span class="pill mod">Moderate</span></td>
-            <td>Actinic keratosis and other pre-malignant lesions</td>
-            <td>Book a non-urgent appointment</td></tr>
-        <tr><td><span class="pill high">High</span></td>
-            <td>Melanoma, basal cell carcinoma, squamous cell carcinoma</td>
-            <td>See a dermatologist promptly</td></tr>
+        <tr><td><strong>1. Quality gate</strong></td><td>Blur, exposure, contrast, resolution and framing. A bad photo gets a retake prompt, not a risk score.</td></tr>
+        <tr><td><strong>2. Segmentation</strong></td><td>Flat-fielded Otsu threshold, component selection with a border penalty, hole filling.</td></tr>
+        <tr><td><strong>3. PanDerm</strong></td><td>ViT-B/16 dermatology foundation model → 197 tokens of 768 dimensions.</td></tr>
+        <tr><td><strong>4. Fusion head</strong></td><td>CLS token + encoded age/sex/site → risk logits.</td></tr>
+        <tr><td><strong>5. Relevance map</strong></td><td>The head applied to every patch token, showing which regions argue for the predicted class.</td></tr>
+        <tr><td><strong>6. ABCDE</strong></td><td>Asymmetry, border, colour, diameter, evolving — measured classically, independently of the network.</td></tr>
+        <tr><td><strong>7. Report</strong></td><td>One recommendation. Evidence may raise the risk level, never lower it.</td></tr>
       </tbody>
     </table>
-    <p style="margin-top:1rem;color:var(--muted);font-size:.92rem">
-      Advice only ever escalates. Low model confidence, a detected change, three
-      or more ABCDE flags, or a heatmap that missed the lesion each push the
-      reported level one step <em>towards</em> seeing a doctor — never away.
-    </p>
   </div>
 </section>
 
 <section>
   <div class="wrap">
     <h2>Honest limitations</h2>
-    <ul class="clean">
-      <li><strong>No validated performance numbers.</strong> The classifier on
-        this demo was trained on synthetic images to verify the pipeline. It
-        demonstrates that the system works end to end; it is not a measured
-        clinical result, and the app labels its samples as synthetic.</li>
-      <li><strong>Skin-tone bias.</strong> The dermatology datasets this design
-        targets over-represent lighter skin. Expect worse performance on darker
-        skin. Nothing here corrects for that.</li>
-      <li><strong>Three levels are a triage simplification</strong>, not a
-        clinical grading system. Collapsing seven diagnoses into three discards
-        information a dermatologist would use.</li>
-      <li><strong>Segmentation is classical, not learned.</strong> It works on
-        centred, well-lit photos of a single lesion and degrades on cluttered
-        ones, heavy hair, or multiple nearby lesions.</li>
+    <ul>
+      <li><strong>No validated performance numbers.</strong> The classifier was
+        trained on synthetic images to verify the pipeline. It demonstrates the
+        system end to end; it is not a measured clinical result.</li>
+      <li><strong>The model is quantised to int8</strong> so it fits in a browser
+        download (327 MB → 83 MB). Measured against the full-precision model on
+        30 real images, it agreed on 29 of 30.</li>
+      <li><strong>Not Grad-CAM.</strong> ONNX Runtime Web does inference only, so
+        there is no backward pass. The heatmap applies the classifier to each
+        patch token instead — the same question, computed without gradients.</li>
+      <li><strong>No GrabCut refinement.</strong> The browser segmentation is the
+        Python pipeline minus its OpenCV-only refinement step, so masks are
+        slightly coarser.</li>
+      <li><strong>Skin-tone bias.</strong> The datasets this design targets
+        over-represent lighter skin. Expect worse performance on darker skin.</li>
     </ul>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <p>
-      <strong>PanDerm</strong> — Yan et al., <em>Nature Medicine</em> (2025).
+    <p><strong>PanDerm</strong> — Yan et al., <em>Nature Medicine</em> (2025),
       <a href="https://github.com/SiyuanYan1/PanDerm">github.com/SiyuanYan1/PanDerm</a>.
-      Weights are CC-BY-NC: non-commercial academic research only, with
-      attribution. This project is a non-commercial student prototype on that basis.
-    </p>
-    <p>
-      <strong>Grad-CAM</strong> — Selvaraju et al., <em>ICCV</em> (2017) ·
+      Weights are CC-BY-NC: non-commercial academic research only, with attribution.
+      This is a non-commercial student prototype on that basis.</p>
+    <p><strong>Grad-CAM</strong> — Selvaraju et al., <em>ICCV</em> (2017) ·
       <strong>HAM10000</strong> — Tschandl et al., <em>Scientific Data</em> (2018) ·
-      <strong>PAD-UFES-20</strong> — Pacheco et al., <em>Data in Brief</em> (2020)
-    </p>
-    <p>
-      <a href="https://github.com/Rohan0639/skin-cancer-risk-app">Source</a> ·
-      <a href="https://huggingface.co/rohan0639/panderm-base-lp-fp16">Weights</a> ·
-      <a href="https://skin-cancer-risk-screening.streamlit.app/">Full-screen app</a>
-    </p>
+      <strong>PAD-UFES-20</strong> — Pacheco et al., <em>Data in Brief</em> (2020)</p>
+    <p><a href="https://github.com/Rohan0639/skin-cancer-risk-app">Source on GitHub</a> ·
+       <a href="https://huggingface.co/rohan0639/panderm-base-lp-fp16">Model weights</a></p>
   </div>
 </footer>
 
+<script type="module" src="./app.js"></script>
 </body>
 </html>

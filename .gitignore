@@ -39,3 +39,7 @@ Thumbs.db
 
 # The trained head is only ~1 MB and is needed for the deployed app to work.
 !checkpoints/risk_head.pt
+
+# Web build: the ONNX model and self-hosted runtime are generated/vendored.
+web/model/*.onnx
+web/vendor/ort/*.wasm
