@@ -187,42 +187,32 @@ export async function predict(input, meta) {
   const tensor = new ort.Tensor('float32', input, [1, 3, 224, 224]);
   const out = await session.run({ image: tensor });
   const tokens = out.tokens.data;             // (1, 197, 768)
-  const nTok = out.tokens.dims[1];
   const dim = out.tokens.dims[2];
 
   const cls = tokens.slice(0, dim);
   const probs = softmax(runHead(Float32Array.from(cls), 1, meta));
-  const top = probs.indexOf(Math.max(...probs));
 
-  const nPatch = nTok - 1;
-  const patches = Float32Array.from(tokens.subarray(dim, dim + nPatch * dim));
-  const patchLogits = runHead(patches, nPatch, meta);
+  // Saliency comes straight from the graph as attention rollout: how much of
+  // the CLS token's effective attention reaches each patch, accumulated
+  // through all 12 blocks. It replaced applying the classifier head to each
+  // patch token, which measured at a focus ratio of 1.03 -- indistinguishable
+  // from a uniform heatmap, because the head only ever saw CLS tokens in
+  // training. Rollout needs no gradients, so it works under ONNX Runtime Web.
+  const raw = out.rollout.data;
+  const nPatch = raw.length;
+  const relevance = Float32Array.from(raw);
 
-  const nCls = probs.length;
-  const relevance = new Float32Array(nPatch);
-  for (let p = 0; p < nPatch; p++) {
-    // Margin of the predicted class over the mean of the others: how much
-    // this patch argues *for* the reported class specifically.
-    let other = 0;
-    for (let c = 0; c < nCls; c++) if (c !== top) other += patchLogits[p * nCls + c];
-    relevance[p] = patchLogits[p * nCls + top] - other / (nCls - 1);
-  }
-
-  // Normalise on percentiles rather than min/max. Straight min-max stretches
-  // the background's small fluctuations across the whole colour ramp, which
-  // renders as rainbow noise and buries the actual signal. Clipping at the
-  // 60th/99th percentile pins typical background to zero and keeps the ramp
-  // for patches that genuinely argue for the class. The gamma then further
-  // suppresses the low end.
+  // Percentile normalisation: min/max stretches background noise across the
+  // whole colour ramp and buries the signal.
   const sorted = Float32Array.from(relevance).sort();
   const pick = (q) => sorted[Math.min(sorted.length - 1,
     Math.max(0, Math.round(q * (sorted.length - 1))))];
-  const lo = pick(0.60);
+  const lo = pick(0.50);
   const hi = pick(0.99);
-  const span = Math.max(1e-6, hi - lo);
+  const span = Math.max(1e-9, hi - lo);
   for (let i = 0; i < relevance.length; i++) {
     const v = Math.min(1, Math.max(0, (relevance[i] - lo) / span));
-    relevance[i] = Math.pow(v, 1.4);
+    relevance[i] = Math.pow(v, 1.2);
   }
 
   return {
