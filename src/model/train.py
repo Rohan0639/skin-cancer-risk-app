@@ -36,7 +36,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from src.backbone import build_backbone  # noqa: E402
 from src.config import Config, load_config  # noqa: E402
 from src.dataset import (  # noqa: E402
+    TARGET_COLUMN,
     LesionDataset,
+    diagnosis_classes,
     build_metadata_matrix,
     class_distribution,
     group_aware_split,
@@ -229,7 +231,7 @@ def train_on_cached_features(
     Returns:
         Per-epoch history records.
     """
-    classes = list(cfg.get("labels.risk_classes"))
+    classes = diagnosis_classes(cfg)
     class_to_idx = {c: i for i, c in enumerate(classes)}
     epochs = int(cfg.get("train.epochs", 15))
     batch_size = int(cfg.get("train.batch_size", 32))
@@ -240,7 +242,7 @@ def train_on_cached_features(
         tensors[name] = (
             torch.from_numpy(features_by_split[name]).to(device),
             torch.from_numpy(build_metadata_matrix(df, cfg)).to(device),
-            torch.tensor([class_to_idx[r] for r in df["risk_label"]],
+            torch.tensor([class_to_idx[r] for r in df[TARGET_COLUMN]],
                          dtype=torch.long, device=device),
         )
 
@@ -358,7 +360,7 @@ def train_end_to_end(
     """
     from torch.utils.data import DataLoader
 
-    classes = list(cfg.get("labels.risk_classes"))
+    classes = diagnosis_classes(cfg)
     epochs = int(cfg.get("train.epochs", 15))
     batch_size = int(cfg.get("train.batch_size", 32))
     patience = int(cfg.get("train.early_stopping_patience", 5))
@@ -463,7 +465,7 @@ def run_training(cfg: Config, force_features: bool = False) -> Path:
     splits = {"train": train_df, "val": val_df, "test": test_df}
     for name, part in splits.items():
         logger.info("  %-5s %4d images  %s", name, len(part),
-                    class_distribution(part, list(cfg.get("labels.risk_classes"))))
+                    class_distribution(part, diagnosis_classes(cfg)))
 
     # Persist the split so evaluate.py scores the same held-out set.
     output_dir = ensure_dir(cfg.path("paths.output_dir"))
@@ -471,7 +473,7 @@ def run_training(cfg: Config, force_features: bool = False) -> Path:
         [part.assign(split=name) for name, part in splits.items()], ignore_index=True
     )
     split_path = output_dir / SPLIT_FILENAME
-    split_rows[["image_path", "risk_label", "source", "split"]].to_csv(split_path, index=False)
+    split_rows[["image_path", "diagnosis", "risk_label", "source", "split"]].to_csv(split_path, index=False)
     logger.info("Wrote split assignment -> %s", split_path)
 
     backbone = build_backbone(cfg).to(device)

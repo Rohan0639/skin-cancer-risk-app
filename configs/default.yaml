@@ -42,6 +42,30 @@ paths:
 labels:
   risk_classes: [Low, Moderate, High]
 
+  # The model predicts the LESION TYPE; the risk level is then derived from it
+  # through the per-dataset maps below. One head, two outputs, and the risk can
+  # never contradict the diagnosis it came from.
+  #
+  # Order fixes the output-layer indices -- changing it invalidates checkpoints.
+  diagnosis_classes: [NEV, SEK, ACK, BCC, SCC, MEL]
+
+  # Patient-facing names. Never show a user a raw code like "ACK".
+  diagnosis_names:
+    NEV: Mole (melanocytic nevus)
+    SEK: Seborrhoeic keratosis
+    ACK: Actinic keratosis
+    BCC: Basal cell carcinoma
+    SCC: Squamous cell carcinoma
+    MEL: Melanoma
+
+  diagnosis_descriptions:
+    NEV: An ordinary mole. Very common and usually harmless.
+    SEK: A benign, warty growth that becomes more common with age. Harmless.
+    ACK: A rough, sun-damaged patch. Pre-cancerous — it can develop into a skin cancer if untreated.
+    BCC: The most common skin cancer. Grows slowly and rarely spreads, but needs treating.
+    SCC: A skin cancer that can spread if left untreated. Needs prompt assessment.
+    MEL: The most serious skin cancer. Early treatment matters a great deal.
+
   # HAM10000 `dx` column -> risk class
   ham10000_map:
     mel:   High        # melanoma

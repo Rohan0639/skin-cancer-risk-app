@@ -41,7 +41,13 @@ import torch.nn as nn
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import load_config  # noqa: E402
-from src.dataset import metadata_dim  # noqa: E402
+from src.dataset import (  # noqa: E402
+    diagnosis_classes,
+    diagnosis_description,
+    diagnosis_name,
+    metadata_dim,
+    risk_for,
+)
 from src.model.risk_classifier import load_risk_classifier  # noqa: E402
 from src.utils import get_logger  # noqa: E402
 
@@ -102,8 +108,16 @@ def dump_head(head: nn.Module, cfg) -> dict:
         return {"scale": scale.astype(np.float32).tolist(),
                 "shift": shift.astype(np.float32).tolist()}
 
+    codes = diagnosis_classes(cfg)
     out: dict = {
-        "classes": list(cfg.get("labels.risk_classes")),
+        # The head predicts lesion types; the browser derives the risk tier
+        # from `risk_of`, so the two can never disagree.
+        "classes": codes,
+        "names": {c: diagnosis_name(cfg, c) for c in codes},
+        "descriptions": {c: diagnosis_description(cfg, c) for c in codes},
+        "risk_of": {c: risk_for(cfg, c) for c in codes},
+        "risk_classes": list(cfg.get("labels.risk_classes")),
+        "recommendations": dict(cfg.get("report.recommendations")),
         "metadata_dim": metadata_dim(cfg),
         "use_metadata": bool(head.use_metadata),
         "image_proj": {

@@ -68,6 +68,10 @@ export async function loadModel(modelUrl, headUrl, onProgress = () => {}) {
   return { classes: head.classes || CLASSES };
 }
 
+export function getHead() {
+  return head;
+}
+
 export function isLoaded() {
   return session !== null && head !== null;
 }

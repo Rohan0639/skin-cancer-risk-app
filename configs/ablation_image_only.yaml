@@ -1,0 +1,279 @@
+# ============================================================================
+# Skin Cancer Detection with Explainable Classification and Risk Assessment
+# Central configuration. Nothing under src/ should hardcode a path or a
+# hyperparameter -- everything below is read at runtime.
+# ============================================================================
+
+project:
+  name: skin-cancer-risk-app
+  seed: 42
+  device: auto            # auto | cpu | cuda
+
+# ---------------------------------------------------------------------------
+# Paths (relative to repository root)
+# ---------------------------------------------------------------------------
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  unified_csv: data/processed/unified.csv
+  checkpoint_dir: checkpoints
+  output_dir: outputs
+  ham10000_raw: data/raw/ham10000
+  pad_ufes_raw: data/raw/pad_ufes_20
+
+# ---------------------------------------------------------------------------
+# Risk label scheme
+#
+# RATIONALE (see README "Label mapping" for the full discussion):
+#   High     - malignant lesions where delay changes outcomes (melanoma,
+#              basal cell carcinoma, squamous cell carcinoma).
+#   Moderate - pre-malignant / dysplastic lesions that warrant a clinician
+#              looking at them but are not themselves invasive cancer
+#              (actinic keratosis, atypical nevus).
+#   Low      - common benign lesions (ordinary nevus, seborrheic keratosis,
+#              dermatofibroma, vascular lesions).
+#
+# LIMITATION: this is a 3-way triage simplification for a student project.
+# It is NOT a clinical grading system. Collapsing 7 diagnoses into 3 buckets
+# discards information a dermatologist would use, and the Moderate bucket in
+# particular is heterogeneous. Edit the maps below to change the scheme --
+# no code change is required.
+# ---------------------------------------------------------------------------
+labels:
+  risk_classes: [Low, Moderate, High]
+
+  # The model predicts the LESION TYPE; the risk level is then derived from it
+  # through the per-dataset maps below. One head, two outputs, and the risk can
+  # never contradict the diagnosis it came from.
+  #
+  # Order fixes the output-layer indices -- changing it invalidates checkpoints.
+  diagnosis_classes: [NEV, SEK, ACK, BCC, SCC, MEL]
+
+  # Patient-facing names. Never show a user a raw code like "ACK".
+  diagnosis_names:
+    NEV: Mole (melanocytic nevus)
+    SEK: Seborrhoeic keratosis
+    ACK: Actinic keratosis
+    BCC: Basal cell carcinoma
+    SCC: Squamous cell carcinoma
+    MEL: Melanoma
+
+  diagnosis_descriptions:
+    NEV: An ordinary mole. Very common and usually harmless.
+    SEK: A benign, warty growth that becomes more common with age. Harmless.
+    ACK: A rough, sun-damaged patch. Pre-cancerous — it can develop into a skin cancer if untreated.
+    BCC: The most common skin cancer. Grows slowly and rarely spreads, but needs treating.
+    SCC: A skin cancer that can spread if left untreated. Needs prompt assessment.
+    MEL: The most serious skin cancer. Early treatment matters a great deal.
+
+  # HAM10000 `dx` column -> risk class
+  ham10000_map:
+    mel:   High        # melanoma
+    bcc:   High        # basal cell carcinoma
+    akiec: Moderate    # actinic keratosis / intraepithelial carcinoma
+    nv:    Low         # melanocytic nevus
+    bkl:   Low         # benign keratosis (seb. keratosis, solar lentigo)
+    df:    Low         # dermatofibroma
+    vasc:  Low         # vascular lesion
+
+  # PAD-UFES-20 `diagnostic` column -> risk class
+  pad_ufes_map:
+    MEL: High          # melanoma
+    BCC: High          # basal cell carcinoma
+    SCC: High          # squamous cell carcinoma
+    ACK: Moderate      # actinic keratosis
+    NEV: Low           # nevus
+    SEK: Low           # seborrheic keratosis
+
+# ---------------------------------------------------------------------------
+# Metadata normalisation: both datasets are mapped onto one shared vocabulary
+# so a single model can be trained across them.
+# ---------------------------------------------------------------------------
+metadata:
+  sex_vocab:  [female, male, unknown]
+  site_vocab: [head_neck, trunk, upper_extremity, lower_extremity, palms_soles, genital, unknown]
+
+  age:
+    min: 0.0
+    max: 100.0         # ages are min-max scaled into [0, 1] using this range
+    impute: 50.0       # value used when age is missing
+
+  ham10000_site_map:
+    scalp: head_neck
+    ear: head_neck
+    face: head_neck
+    neck: head_neck
+    back: trunk
+    trunk: trunk
+    chest: trunk
+    abdomen: trunk
+    upper extremity: upper_extremity
+    hand: upper_extremity
+    lower extremity: lower_extremity
+    foot: lower_extremity
+    acral: palms_soles
+    genital: genital
+    unknown: unknown
+
+  pad_ufes_site_map:
+    FACE: head_neck
+    NOSE: head_neck
+    EAR: head_neck
+    LIP: head_neck
+    SCALP: head_neck
+    NECK: head_neck
+    CHEST: trunk
+    BACK: trunk
+    ABDOMEN: trunk
+    ARM: upper_extremity
+    FOREARM: upper_extremity
+    HAND: upper_extremity
+    THIGH: lower_extremity
+    FOOT: lower_extremity
+
+# ---------------------------------------------------------------------------
+# Image quality gate -- run before anything else touches the photo.
+# Thresholds are deliberately tunable; defaults were chosen so a normal,
+# in-focus phone photo passes and an obviously bad one fails.
+# ---------------------------------------------------------------------------
+quality:
+  min_width: 224
+  min_height: 224
+  blur_laplacian_var_min: 60.0     # variance of Laplacian; lower = blurrier
+  brightness_min: 40.0             # mean luma, 0-255
+  brightness_max: 215.0
+  # Std of luma. This guards against a genuinely featureless frame (a photo of
+  # blank skin, a lens cap, a wall), which scores under ~2. It must NOT be set
+  # high enough to reject a pale lesion on uniform skin: those are legitimate
+  # photos, they score around 8, and they are disproportionately BENIGN -- so a
+  # strict threshold here silently rejects exactly the reassuring cases.
+  # "Is a lesion visible at all?" is the framing check's job, not this one.
+  contrast_std_min: 5.0
+  centre_fraction: 0.5             # central crop used for framing checks
+  min_lesion_area_fraction: 0.01   # lesion should occupy >=1% of the frame
+  max_lesion_area_fraction: 0.90   # ...and not fill the whole frame
+
+# ---------------------------------------------------------------------------
+# Feature-extraction backbone.
+#   backend: panderm   -> use the PanDerm dermatology foundation model
+#            fallback  -> use a pretrained ImageNet backbone from timm
+#            auto      -> try PanDerm, fall back automatically (recommended)
+# ---------------------------------------------------------------------------
+backbone:
+  # 'panderm' = require the real PanDerm foundation model and fail loudly if it
+  # is missing, rather than silently substituting a weaker ImageNet model.
+  # Change to 'auto' if you want the fallback safety net back.
+  backend: panderm
+  image_size: 224
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std:  [0.229, 0.224, 0.225]
+
+  panderm:
+    # Clone https://github.com/SiyuanYan1/PanDerm into repo_dir, then place the
+    # released checkpoint at `checkpoint`. See README > "Using PanDerm".
+    # A minimal, committed copy of PanDerm's model definition lives in
+    # vendor/panderm, so deployments work without cloning upstream. Point this
+    # at a full clone (third_party/PanDerm) if you need the rest of the repo.
+    repo_dir: vendor/panderm
+    # PanDerm_Base_LP -> panderm_bb_data6_checkpoint-499.pth  (768-dim, ViT-B/16)
+    # PanDerm_Large_LP -> panderm_ll_data6_checkpoint-499.pth (1024-dim, ViT-L/16)
+    model_name: PanDerm_Base_LP
+    checkpoint: checkpoints/panderm/panderm_bb_data6_checkpoint-499.pth
+    # If the checkpoint is absent locally, download it from this Hugging Face
+    # MODEL repo on first run (weights are stored fp16 to halve the download;
+    # they load into the fp32 model with ~7e-5 difference in output).
+    # Set hf_repo to null to disable downloading.
+    hf_repo: rohan0639/panderm-base-lp-fp16
+    hf_filename: panderm_bb_data6_checkpoint-499-fp16.pth
+    feature_dim: 768
+
+  fallback:
+    model_name: convnext_base       # any timm model name
+    pretrained: true
+    feature_dim: null               # null -> inferred from the model
+
+# ---------------------------------------------------------------------------
+# Fusion head: image embedding + encoded metadata -> risk logits
+# ---------------------------------------------------------------------------
+model:
+  metadata_embed_dim: 32
+  image_proj_dim: 256
+  hidden_dims: [256, 128]
+  dropout: 0.3
+  use_metadata: false
+
+# ---------------------------------------------------------------------------
+# Training
+# ---------------------------------------------------------------------------
+train:
+  epochs: 15
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  test_fraction: 0.15
+  num_workers: 0                   # 0 is safest on Windows
+  class_weighting: true            # counteract heavy class imbalance
+  early_stopping_patience: 5
+  checkpoint_name: head_image_only.pt
+  cache_features: true             # precompute embeddings once, then train fast
+  feature_cache_name: features.npz
+  augment: true
+
+# ---------------------------------------------------------------------------
+# Evaluation
+# ---------------------------------------------------------------------------
+evaluate:
+  metrics_json: outputs/metrics.json
+  metrics_csv: outputs/per_class_metrics.csv
+  confusion_matrix_png: outputs/confusion_matrix.png
+  roc_curve_png: outputs/roc_curves.png
+
+# ---------------------------------------------------------------------------
+# Explainability
+# ---------------------------------------------------------------------------
+explain:
+  gradcam:
+    enabled: true
+    alpha: 0.45                    # heatmap opacity in the overlay
+    colormap: jet
+    # "Focus ratio" = share of heatmap mass inside the lesion, divided by the
+    # lesion's share of the frame. 1.0 means the model attended to the lesion no
+    # better than a uniform heatmap would; higher means genuinely concentrated.
+    # Two separate thresholds, because informing the user and changing their
+    # advice are different actions:
+    min_focus_ratio_note: 1.2      # below this -> show a caution in the report
+    min_focus_ratio_escalate: 1.0  # below this -> also raise the risk level
+  abcde:
+    # Thresholds converting continuous heuristic scores into flag / no-flag.
+    asymmetry_threshold: 0.18
+    border_irregularity_threshold: 1.55   # perimeter^2 / (4*pi*area)
+    color_variance_threshold: 0.16
+    color_cluster_threshold: 3            # distinct colour clusters
+    diameter_mm_threshold: 6.0
+    assumed_field_of_view_mm: 40.0        # rough phone-photo FOV for mm estimate
+
+# ---------------------------------------------------------------------------
+# Change detection between two photos of the same lesion
+# ---------------------------------------------------------------------------
+tracking:
+  embedding_distance_threshold: 0.15   # cosine distance
+  area_change_threshold: 0.25          # relative lesion-area change
+  color_change_threshold: 0.20
+  asymmetry_change_threshold: 0.10
+
+# ---------------------------------------------------------------------------
+# Report + UI
+# ---------------------------------------------------------------------------
+report:
+  disclaimer: >-
+    This tool is a student research prototype. It is NOT a medical device, it
+    has NOT been clinically validated, and it does NOT provide a diagnosis.
+    Its output must never be used to rule out skin cancer. If you are worried
+    about a skin lesion -- or if it is changing, bleeding, itching, or does not
+    heal -- see a doctor or dermatologist regardless of what this tool says.
+  recommendations:
+    Low: Keep monitoring. Re-photograph this lesion in about 3 months and compare.
+    Moderate: Book a non-urgent appointment with a doctor or dermatologist to have this lesion checked.
+    High: See a dermatologist promptly. Do not wait for it to change further.
+  low_confidence_threshold: 0.50       # below this, escalate the advice

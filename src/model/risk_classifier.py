@@ -21,7 +21,14 @@ import torch.nn as nn
 
 from src.backbone import FeatureBackbone, build_backbone
 from src.config import Config, load_config
-from src.dataset import encode_metadata, metadata_dim
+from src.dataset import (
+    diagnosis_classes,
+    diagnosis_description,
+    diagnosis_name,
+    encode_metadata,
+    metadata_dim,
+    risk_for,
+)
 from src.model.fusion import FusionHead
 from src.utils import get_logger, resolve_device
 
@@ -30,27 +37,47 @@ logger = get_logger(__name__)
 
 @dataclass
 class RiskPrediction:
-    """A single risk prediction with its supporting numbers.
+    """What the model thinks the lesion is, and what that implies.
+
+    The network predicts a diagnosis; the risk tier is looked up from it, so
+    the two are always consistent.
 
     Attributes:
-        label: Predicted risk class, e.g. ``"Moderate"``.
-        confidence: Probability assigned to ``label``, in [0, 1].
-        probabilities: Probability for every class.
+        diagnosis: Predicted lesion-type code, e.g. ``"BCC"``.
+        diagnosis_name: Patient-facing name, e.g. ``"Basal cell carcinoma"``.
+        diagnosis_description: One-line plain-language explanation.
+        diagnosis_confidence: Probability assigned to ``diagnosis``.
+        diagnosis_probabilities: Probability for every lesion type.
+        label: The risk tier implied by ``diagnosis``.
+        confidence: Total probability of all diagnoses in that tier. This is
+            the number that matters for the advice: three malignant diagnoses
+            at 30% each mean high risk, even though no single one is likely.
+        probabilities: Probability per risk tier.
         features: The backbone embedding, kept for change detection.
         low_confidence: ``True`` when ``confidence`` is below the configured
-            threshold, meaning the advice should be escalated rather than
-            trusted.
+            threshold, meaning the advice should be escalated, not trusted.
     """
 
+    diagnosis: str
+    diagnosis_name: str
+    diagnosis_confidence: float
+    diagnosis_probabilities: Dict[str, float]
     label: str
     confidence: float
     probabilities: Dict[str, float]
+    diagnosis_description: str = ""
     features: Optional[np.ndarray] = field(default=None, repr=False)
     low_confidence: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a JSON-serialisable view (excluding the raw features)."""
         return {
+            "diagnosis": self.diagnosis,
+            "diagnosis_name": self.diagnosis_name,
+            "diagnosis_description": self.diagnosis_description,
+            "diagnosis_confidence": round(float(self.diagnosis_confidence), 4),
+            "diagnosis_probabilities": {
+                k: round(float(v), 4) for k, v in self.diagnosis_probabilities.items()},
             "label": self.label,
             "confidence": round(float(self.confidence), 4),
             "probabilities": {k: round(float(v), 4) for k, v in self.probabilities.items()},
@@ -83,7 +110,8 @@ class RiskClassifier(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.backbone = backbone
-        self.classes: List[str] = list(cfg.get("labels.risk_classes"))
+        # The head predicts lesion types; risk is derived from them.
+        self.classes: List[str] = diagnosis_classes(cfg)
         self.freeze_backbone = freeze_backbone
 
         self.head = FusionHead(
@@ -174,15 +202,31 @@ class RiskClassifier(nn.Module):
         probs = torch.softmax(logits, dim=1).squeeze(0).cpu().numpy()
 
         best = int(np.argmax(probs))
+        code = self.classes[best]
+        dx_probs = {c: float(p) for c, p in zip(self.classes, probs)}
+
+        # Risk probability is the total mass of every diagnosis in that tier,
+        # not the top diagnosis alone.
+        risk_probs: Dict[str, float] = {
+            r: 0.0 for r in self.cfg.get("labels.risk_classes")}
+        for c, p in dx_probs.items():
+            risk_probs[risk_for(self.cfg, c)] = risk_probs.get(
+                risk_for(self.cfg, c), 0.0) + p
+
+        risk = risk_for(self.cfg, code)
         threshold = float(self.cfg.get("report.low_confidence_threshold", 0.5))
-        confidence = float(probs[best])
 
         return RiskPrediction(
-            label=self.classes[best],
-            confidence=confidence,
-            probabilities={c: float(p) for c, p in zip(self.classes, probs)},
+            diagnosis=code,
+            diagnosis_name=diagnosis_name(self.cfg, code),
+            diagnosis_description=diagnosis_description(self.cfg, code),
+            diagnosis_confidence=float(probs[best]),
+            diagnosis_probabilities=dx_probs,
+            label=risk,
+            confidence=float(risk_probs.get(risk, 0.0)),
+            probabilities=risk_probs,
             features=features.squeeze(0).cpu().numpy(),
-            low_confidence=confidence < threshold,
+            low_confidence=float(risk_probs.get(risk, 0.0)) < threshold,
         )
 
     # -- checkpoint I/O ----------------------------------------------------

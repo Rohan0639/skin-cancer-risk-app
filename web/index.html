@@ -102,6 +102,19 @@
   table{width:100%;border-collapse:collapse;font-size:.93rem}
   th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}
   th{font-size:.76rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .dxdesc{margin:.3rem 0 .6rem;color:var(--muted)}
+  ul.ranked{list-style:none;padding:0;margin:0 0 1.2rem}
+  ul.ranked li{position:relative;display:flex;align-items:center;gap:.6rem;
+    padding:.45rem .7rem;margin-bottom:.3rem;border-radius:7px;overflow:hidden;
+    background:var(--surface);border:1px solid var(--border);font-size:.93rem}
+  ul.ranked li.lead{border-color:var(--accent)}
+  ul.ranked .bar{position:absolute;left:0;top:0;bottom:0;background:var(--accent);opacity:.14}
+  ul.ranked .nm{position:relative;flex:1}
+  ul.ranked .pc{position:relative;font-variant-numeric:tabular-nums;font-weight:600}
+  details.notes{margin-top:1rem;border:1px solid var(--border);border-radius:9px;padding:.6rem .9rem}
+  details.notes summary{cursor:pointer;font-size:.9rem;color:var(--muted)}
+  details.notes ul{margin:.6rem 0 0;padding-left:1.1rem}
+  details.notes li{font-size:.9rem;color:var(--muted);margin-bottom:.4rem}
   footer{border-top:1px solid var(--border);padding:2rem 0 3rem;color:var(--muted);font-size:.87rem}
   footer a{color:var(--muted)}
 </style>
@@ -194,13 +207,14 @@
 
       <div class="samples">
         <span class="muted small">No photo to hand?</span>
-        <button data-sample="./samples/low.png">Low example</button>
-        <button data-sample="./samples/moderate.png">Moderate example</button>
-        <button data-sample="./samples/high.png">High example</button>
+        <button data-sample="./samples/nev.jpg?v=6f5656bb" data-age="55" data-sex="male" data-site="head_neck">Mole</button>
+        <button data-sample="./samples/ack.jpg?v=a6d91573" data-age="55" data-sex="unknown" data-site="head_neck">Actinic keratosis</button>
+        <button data-sample="./samples/mel.jpg?v=02aebecc" data-age="85" data-sex="female" data-site="lower_extremity">Melanoma</button>
+        <button data-sample="./samples/bcc.jpg?v=c1606428" data-age="70" data-sex="male" data-site="head_neck">Basal cell carcinoma</button>
       </div>
       <p class="muted small" style="margin-top:.6rem">
-        The bundled examples are <strong>synthetic</strong> — procedurally drawn
-        blobs, not real lesions.
+        Real clinical photographs from the ISIC Archive, taken from the
+        held-out test split — the model never saw them during training.
       </p>
 
       <div id="loading" hidden>
@@ -219,44 +233,23 @@
 
 <section>
   <div class="wrap">
-    <h2>How it works</h2>
+    <h2>About this tool</h2>
     <p>
-      Everything below happens on your device. The page downloads the model
-      once and runs it with ONNX Runtime Web; no image is ever transmitted.
+      PanDerm (ViT-B/16, a dermatology foundation model) runs in your browser
+      via ONNX Runtime Web. It classifies six lesion types and derives a risk
+      tier from the diagnosis, alongside a classical ABCDE check computed
+      independently of the network.
     </p>
-    <table>
-      <tbody>
-        <tr><td><strong>1. Quality gate</strong></td><td>Blur, exposure, contrast, resolution and framing. A bad photo gets a retake prompt, not a risk score.</td></tr>
-        <tr><td><strong>2. Segmentation</strong></td><td>Flat-fielded Otsu threshold, component selection with a border penalty, hole filling.</td></tr>
-        <tr><td><strong>3. PanDerm</strong></td><td>ViT-B/16 dermatology foundation model → 197 tokens of 768 dimensions.</td></tr>
-        <tr><td><strong>4. Fusion head</strong></td><td>CLS token + encoded age/sex/site → risk logits.</td></tr>
-        <tr><td><strong>5. Relevance map</strong></td><td>The head applied to every patch token, showing which regions argue for the predicted class.</td></tr>
-        <tr><td><strong>6. ABCDE</strong></td><td>Asymmetry, border, colour, diameter, evolving — measured classically, independently of the network.</td></tr>
-        <tr><td><strong>7. Report</strong></td><td>One recommendation. Evidence may raise the risk level, never lower it.</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <h2>Honest limitations</h2>
-    <ul>
-      <li><strong>No validated performance numbers.</strong> The classifier was
-        trained on synthetic images to verify the pipeline. It demonstrates the
-        system end to end; it is not a measured clinical result.</li>
-      <li><strong>The model is quantised to int8</strong> so it fits in a browser
-        download (327 MB → 83 MB). Measured against the full-precision model on
-        30 real images, it agreed on 29 of 30.</li>
-      <li><strong>Not Grad-CAM.</strong> ONNX Runtime Web does inference only, so
-        there is no backward pass. The heatmap applies the classifier to each
-        patch token instead — the same question, computed without gradients.</li>
-      <li><strong>No GrabCut refinement.</strong> The browser segmentation is the
-        Python pipeline minus its OpenCV-only refinement step, so masks are
-        slightly coarser.</li>
-      <li><strong>Skin-tone bias.</strong> The datasets this design targets
-        over-represent lighter skin. Expect worse performance on darker skin.</li>
-    </ul>
+    <p class="muted small">
+      Measured on 330 held-out real clinical photographs from the ISIC Archive:
+      <strong>macro F1 0.707</strong>, accuracy 0.721, ROC-AUC 0.946, melanoma
+      recall 0.90. An image-only ablation scores 0.668, so the photo does most
+      of the work and the age/site metadata adds about 0.04 — but it does shift
+      borderline cases, so changing those fields can change the answer.
+      The browser model is quantised to int8 to fit an 85 MB download.
+      Datasets over-represent lighter skin, so expect worse performance on
+      darker skin.
+    </p>
   </div>
 </section>
 

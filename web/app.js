@@ -3,8 +3,11 @@
 import { analyse, CFG } from './lib/pipeline.js';
 import { loadModel, isLoaded } from './lib/model.js';
 
-const MODEL_URL = './model/panderm_vit_int8.onnx';
-const HEAD_URL = './model/head.json';
+// Model files are served with an immutable cache header, so the URLs carry
+// a content hash. Without it a browser keeps the previous model forever and
+// silently mixes a new graph with a stale head.
+const MODEL_URL = './model/panderm_vit_int8.onnx?v=15737bc3';
+const HEAD_URL = './model/head.json?v=b548555a';
 
 const $ = (id) => document.getElementById(id);
 const state = { img: null, prevImg: null, ready: false };
@@ -87,21 +90,28 @@ function render(result) {
   const cls = report.level.toLowerCase();
   const pct = (v) => `${Math.round(v * 100)}%`;
 
+  // Lead with what the lesion appears to be, then what to do about it.
   let html = `
     <div class="verdict ${cls}">
-      <div class="vlabel">Risk level</div>
-      <div class="vlevel">${report.level}</div>
-      <p class="vrec"><strong>What to do:</strong> ${report.recommendation}</p>
-    </div>
-    <div class="metrics">
-      <div><span>Confidence</span><strong>${pct(report.confidence)}</strong></div>
-      ${Object.entries(report.probabilities)
-        .map(([k, v]) => `<div><span>${k}</span><strong>${pct(v)}</strong></div>`).join('')}
+      <div class="vlabel">Most likely</div>
+      <div class="vlevel">${report.diagnosisName}</div>
+      <p class="dxdesc">${report.diagnosisDescription}</p>
+      <p class="vrec"><strong>${report.level} risk — ${report.recommendation}</strong></p>
     </div>`;
 
+  // A six-way call at ~71% accuracy is not a single confident answer, so the
+  // runners-up are shown rather than hidden behind one headline.
+  html += '<h3>Other possibilities</h3><ul class="ranked">';
+  for (const r of report.ranked.slice(0, 4)) {
+    const lead = r.code === report.diagnosis ? ' lead' : '';
+    html += `<li class="${lead}"><span class="bar" style="width:${Math.max(2, r.p * 100)}%"></span>
+      <span class="nm">${r.name}</span><span class="pc">${pct(r.p)}</span></li>`;
+  }
+  html += '</ul>';
+
   if (report.escalationReasons.length) {
-    html += `<div class="escalate"><strong>Advice raised above the model’s own prediction
-      (${report.modelLevel}) because:</strong> ${report.escalationReasons.join('; ')}.</div>`;
+    html += `<p class="escalate">Advice raised to <strong>${report.level}</strong> because
+      ${report.escalationReasons.join('; ')}.</p>`;
   }
 
   html += `<div class="panes">
@@ -109,8 +119,7 @@ function render(result) {
       <figure><figcaption>Where the model looked</figcaption><div id="paneB"></div></figure>
     </div>`;
 
-  html += `<h3>What we looked at — the ABCDE rule</h3>
-    <p class="muted">${report.abcde.summary}</p><ul class="abcde">`;
+  html += `<h3>ABCDE check</h3><p class="muted">${report.abcde.summary}</p><ul class="abcde">`;
   for (const f of report.abcde.features) {
     const tag = !f.measurable ? '<em class="na">not measured</em>'
       : f.flagged ? '<em class="flag">worth attention</em>'
@@ -120,18 +129,17 @@ function render(result) {
   html += '</ul>';
 
   if (report.change) {
-    html += `<h3>Compared with your earlier photo</h3>
-      <p class="${report.change.changed ? 'warnbox' : 'okbox'}">
-        <strong>${report.change.changed ? 'Meaningful change detected' : 'No significant change'}.</strong>
-        ${report.change.reason}</p>`;
+    html += `<p class="${report.change.changed ? 'warnbox' : 'okbox'}">
+      <strong>${report.change.changed ? 'Changed since your earlier photo' : 'No significant change'}.</strong>
+      ${report.change.reason}</p>`;
   }
 
+  // Caveats are collapsed: present and findable, but not shouting over the result.
   if (report.notes.length) {
-    html += '<h3>Please note</h3><ul class="notes">' +
-      report.notes.map((n) => `<li>${n}</li>`).join('') + '</ul>';
+    html += '<details class="notes"><summary>Caveats for this result</summary><ul>' +
+      report.notes.map((n) => `<li>${n}</li>`).join('') + '</ul></details>';
   }
 
-  html += `<p class="muted small">${CFG.disclaimer}</p>`;
   out.innerHTML = html;
 
   const a = document.createElement('canvas');
@@ -139,11 +147,10 @@ function render(result) {
   a.getContext('2d').drawImage(state.img, 0, 0, width, height);
   $('paneA').appendChild(a);
   $('paneB').appendChild(heatmapCanvas(relevance, grid, state.img, width, height));
-
   if (focusRatio !== null) {
     const cap = document.createElement('p');
     cap.className = 'muted small';
-    cap.textContent = `Relevance is ${focusRatio.toFixed(1)}× more concentrated on the lesion than chance. Red is where the model argued hardest for this class.`;
+    cap.textContent = `${focusRatio.toFixed(1)}× more focused on the lesion than chance.`;
     $('paneB').appendChild(cap);
   }
   out.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -209,9 +216,15 @@ document.querySelectorAll('[data-sample]').forEach((btn) => {
       img.onload = res; img.onerror = rej;
       img.src = btn.dataset.sample;
     });
+    // Apply the sample's real patient metadata. Age and body site genuinely
+    // move the prediction, so running a real ISIC image against arbitrary
+    // form defaults would misrepresent the model.
+    if (btn.dataset.age) $('age').value = btn.dataset.age;
+    if (btn.dataset.sex) $('sex').value = btn.dataset.sex;
+    if (btn.dataset.site) $('site').value = btn.dataset.site;
     state.img = img;
     state.prevImg = null;
-    $('photoName').textContent = btn.textContent.trim() + ' (synthetic sample)';
+    $('photoName').textContent = `${btn.textContent.trim()} (ISIC test image)`;
     $('prevName').textContent = '';
     $('run').disabled = false;
     $('run').click();

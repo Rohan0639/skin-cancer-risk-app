@@ -134,6 +134,52 @@ def metadata_dim(cfg: Config) -> int:
     return 2 + len(cfg.get("metadata.sex_vocab")) + len(cfg.get("metadata.site_vocab"))
 
 
+# ---------------------------------------------------------------------------
+# Prediction target
+#
+# The network predicts the LESION TYPE. The risk tier is then looked up from
+# that diagnosis, so the two can never contradict each other, and a user is
+# told what the lesion appears to be rather than only how worried to be.
+# ---------------------------------------------------------------------------
+#: Column the model is trained against. The network predicts the lesion type;
+#: risk is derived from it, never learned separately.
+TARGET_COLUMN = "diagnosis"
+
+
+def diagnosis_classes(cfg: Config) -> List[str]:
+    """Return the ordered diagnosis codes the model predicts."""
+    return list(cfg.get("labels.diagnosis_classes"))
+
+
+def diagnosis_name(cfg: Config, code: str) -> str:
+    """Return the patient-facing name for a diagnosis code."""
+    return str(dict(cfg.get("labels.diagnosis_names", {})).get(code, code))
+
+
+def diagnosis_description(cfg: Config, code: str) -> str:
+    """Return a one-line plain-language description of a diagnosis."""
+    return str(dict(cfg.get("labels.diagnosis_descriptions", {})).get(code, ""))
+
+
+def diagnosis_to_risk(cfg: Config) -> Dict[str, str]:
+    """Map each diagnosis code to its risk tier.
+
+    Built from the dataset label maps already in the config, so editing the
+    risk scheme there automatically changes what the model's diagnosis implies
+    without touching any code.
+    """
+    mapping: Dict[str, str] = {}
+    for key in ("labels.pad_ufes_map", "labels.ham10000_map"):
+        for code, risk in dict(cfg.get(key, {})).items():
+            mapping.setdefault(str(code).upper(), str(risk))
+    return mapping
+
+
+def risk_for(cfg: Config, code: str) -> str:
+    """Return the risk tier implied by a diagnosis code."""
+    return diagnosis_to_risk(cfg).get(str(code).upper(), "Moderate")
+
+
 def build_metadata_matrix(df: pd.DataFrame, cfg: Config) -> np.ndarray:
     """Encode a dataframe's metadata into a ``(len(df), metadata_dim)`` matrix.
 
@@ -212,7 +258,7 @@ def group_aware_split(
 
     rng = np.random.default_rng(seed)
     # Stratify groups by their majority risk label so rare classes survive.
-    group_label = df.groupby("lesion_id")["risk_label"].agg(
+    group_label = df.groupby("lesion_id")[TARGET_COLUMN].agg(
         lambda s: s.value_counts().idxmax()
     )
     train_groups: List[Any] = []
@@ -266,7 +312,7 @@ class LesionDataset:
         self.df = df.reset_index(drop=True)
         self.cfg = cfg
         self.transform = transform
-        self.classes: List[str] = list(cfg.get("labels.risk_classes"))
+        self.classes: List[str] = diagnosis_classes(cfg)
         self.class_to_idx = {c: i for i, c in enumerate(self.classes)}
 
     def __len__(self) -> int:
@@ -288,11 +334,11 @@ class LesionDataset:
         meta = torch.from_numpy(
             encode_metadata(row["age"], row["sex"], row["site"], self.cfg)
         )
-        label = torch.tensor(self.class_to_idx[row["risk_label"]], dtype=torch.long)
+        label = torch.tensor(self.class_to_idx[row[TARGET_COLUMN]], dtype=torch.long)
         return tensor, meta, label
 
 
 def class_distribution(df: pd.DataFrame, classes: Sequence[str]) -> Dict[str, int]:
     """Return a ``{class_name: count}`` mapping including zero-count classes."""
-    counts = df["risk_label"].value_counts().to_dict()
+    counts = df[TARGET_COLUMN].value_counts().to_dict()
     return {c: int(counts.get(c, 0)) for c in classes}

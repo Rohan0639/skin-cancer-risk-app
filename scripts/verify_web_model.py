@@ -125,7 +125,7 @@ def main() -> int:
         meta = encode_metadata(row["age"], row["sex"], row["site"], cfg)[None]
 
         ref = torch_model.predict(rgb, row["age"], row["sex"], row["site"])
-        ref_p = np.array([ref.probabilities[c] for c in classes], dtype=np.float32)
+        ref_p = np.array([ref.diagnosis_probabilities[c] for c in classes], dtype=np.float32)
 
         for sess, tag in ((sess_fp32, "fp32"), (sess_int8, "int8")):
             tokens = sess.run(None, {"image": image})[0]

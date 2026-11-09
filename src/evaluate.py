@@ -49,7 +49,7 @@ from sklearn.metrics import (  # noqa: E402
 )
 
 from src.config import Config, load_config  # noqa: E402
-from src.dataset import build_metadata_matrix, load_unified_csv  # noqa: E402
+from src.dataset import TARGET_COLUMN, build_metadata_matrix, load_unified_csv  # noqa: E402
 from src.model.risk_classifier import load_risk_classifier  # noqa: E402
 from src.model.train import SPLIT_FILENAME, extract_features  # noqa: E402
 from src.utils import ensure_dir, get_logger, resolve_device, set_seed  # noqa: E402
@@ -119,7 +119,7 @@ def predict_split(
         )
         probabilities = torch.softmax(logits, dim=1).cpu().numpy()
 
-    y_true = np.array([class_to_idx[r] for r in df["risk_label"]], dtype=np.int64)
+    y_true = np.array([class_to_idx[r] for r in df[TARGET_COLUMN]], dtype=np.int64)
     return y_true, probabilities
 
 
@@ -168,10 +168,10 @@ def compute_metrics(
     weighted_p, weighted_r, weighted_f1, _ = precision_recall_fscore_support(
         y_true, y_pred, labels=list(range(n_classes)), average="weighted", zero_division=0)
 
-    # Clinically the costliest error is calling a High-risk lesion Low, so
-    # report that rate explicitly rather than burying it in the matrix.
-    high_idx = classes.index("High") if "High" in classes else None
-    low_idx = classes.index("Low") if "Low" in classes else None
+    # The costliest error is calling a melanoma an ordinary mole, so report
+    # that rate explicitly rather than burying it in the matrix.
+    high_idx = classes.index("MEL") if "MEL" in classes else None
+    low_idx = classes.index("NEV") if "NEV" in classes else None
     high_missed_as_low: Optional[float] = None
     if high_idx is not None and low_idx is not None:
         n_high = int((y_true == high_idx).sum())
@@ -201,7 +201,7 @@ def compute_metrics(
         "confusion_matrix": confusion_matrix(
             y_true, y_pred, labels=list(range(n_classes))).tolist(),
         "confusion_matrix_labels": classes,
-        "high_risk_missed_as_low_rate": high_missed_as_low,
+        "melanoma_called_nevus_rate": high_missed_as_low,
         "classification_report": classification_report(
             y_true, y_pred, labels=list(range(n_classes)), target_names=classes,
             zero_division=0),
@@ -298,8 +298,8 @@ def print_summary(metrics: Dict[str, Any], provenance: Dict[str, Any]) -> None:
     print(f"  macro recall      : {macro['recall']:.4f}")
     print(f"  macro F1          : {macro['f1']:.4f}")
     print(f"  macro ROC-AUC(ovr): {auc_text}")
-    if metrics["high_risk_missed_as_low_rate"] is not None:
-        print(f"  High called Low   : {metrics['high_risk_missed_as_low_rate']:.4f}  "
+    if metrics["melanoma_called_nevus_rate"] is not None:
+        print(f"  MEL called NEV    : {metrics['melanoma_called_nevus_rate']:.4f}  "
               "(the costliest error)")
     print("-" * 72)
     print(metrics["classification_report"])

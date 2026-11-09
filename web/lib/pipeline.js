@@ -4,7 +4,7 @@
  */
 
 import * as cv from './vision.js';
-import { predict, runHead, softmax } from './model.js';
+import { predict, getHead } from './model.js';
 
 export const CFG = {
   imageSize: 224,
@@ -194,17 +194,42 @@ function escalate(level, steps = 1) {
  * Assemble the final report. Evidence may raise the risk level, never lower
  * it — the same rule as the Python implementation.
  */
+/**
+ * Assemble the final report.
+ *
+ * The network predicts a lesion type; the risk tier is looked up from it, so
+ * the two can never contradict each other. Risk confidence is the summed
+ * probability of every diagnosis in that tier — three malignant diagnoses at
+ * 30% each mean high risk even though no single one is likely.
+ *
+ * Evidence may raise the risk level, never lower it.
+ */
 export function buildReport({ probs, classes, abcde, quality, change, focusRatio, segFound }) {
+  const head = getHead() || {};
+  const names = head.names || {};
+  const descs = head.descriptions || {};
+  const riskOf = head.risk_of || {};
+  const recs = head.recommendations || CFG.recommendations;
+
   const top = probs.indexOf(Math.max(...probs));
-  const modelLevel = classes[top];
-  const confidence = probs[top];
+  const code = classes[top];
+
+  const riskProbs = {};
+  for (const r of ORDER) riskProbs[r] = 0;
+  classes.forEach((c, i) => {
+    const r = riskOf[c] || 'Moderate';
+    riskProbs[r] = (riskProbs[r] || 0) + probs[i];
+  });
+
+  const modelLevel = riskOf[code] || 'Moderate';
+  const confidence = riskProbs[modelLevel] || 0;
   let level = modelLevel;
   const reasons = [];
   const notes = [];
 
   if (confidence < CFG.lowConfidence) {
     level = escalate(level);
-    reasons.push(`the model was only ${Math.round(confidence * 100)}% confident, below the ${Math.round(CFG.lowConfidence * 100)}% mark we treat as reliable`);
+    reasons.push(`the model was only ${Math.round(confidence * 100)}% confident`);
   }
   if (change && change.changed) {
     level = escalate(level);
@@ -214,28 +239,35 @@ export function buildReport({ probs, classes, abcde, quality, change, focusRatio
     level = escalate(level);
     reasons.push(`${abcde.flagCount} ABCDE features were flagged`);
   }
-  if (focusRatio !== null && focusRatio < 1.2) {
-    notes.push(`Caution: the model’s attention was no more concentrated on the lesion than on the surrounding skin. It may be reacting to the background rather than the mark.`);
-    if (focusRatio < 1.0) {
-      level = escalate(level);
-      reasons.push('the model’s attention fell on the lesion less than chance alone would predict');
-    }
+  if (focusRatio !== null && focusRatio < 1.0) {
+    level = escalate(level);
+    reasons.push('the model looked at the lesion less than chance alone would predict');
   }
   if (!segFound) {
-    notes.push('We could not trace the lesion’s outline confidently, so the ABCDE measurements above are rough. A clearer, better-lit photo would help.');
+    notes.push('We could not trace the lesion outline confidently, so the ABCDE measurements are rough.');
   }
   if (quality && !quality.passed) {
-    notes.push(`This photo did not pass our quality checks, so the result is less reliable than usual. ${quality.reason}`);
+    notes.push(`This photo did not pass our quality checks, so the result is less reliable. ${quality.reason}`);
   }
   if (!change) {
-    notes.push('You did not add an earlier photo, so we could not check whether this lesion is changing — one of the strongest warning signs there is.');
+    notes.push('No earlier photo was given, so we could not check whether this lesion is changing.');
   }
-  notes.push('This result came from a model trained on synthetic demonstration images. It shows the pipeline working; it is not a validated classifier.');
+
+  // Ranked alternatives: a 6-way call at ~70% accuracy should never be shown
+  // as a single confident answer.
+  const ranked = classes
+    .map((c, i) => ({ code: c, name: names[c] || c, p: probs[i], risk: riskOf[c] }))
+    .sort((a, b) => b.p - a.p);
 
   return {
+    diagnosis: code,
+    diagnosisName: names[code] || code,
+    diagnosisDescription: descs[code] || '',
+    diagnosisConfidence: probs[top],
+    ranked,
     level, modelLevel, confidence,
-    probabilities: Object.fromEntries(classes.map((c, i) => [c, probs[i]])),
-    recommendation: CFG.recommendations[level],
+    probabilities: riskProbs,
+    recommendation: recs[level],
     escalationReasons: reasons,
     notes, abcde, quality, change
   };
