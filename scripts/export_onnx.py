@@ -54,6 +54,13 @@ from src.utils import get_logger  # noqa: E402
 
 logger = get_logger("export_onnx")
 
+#: First transformer block included in the rollout product. Chosen by sweeping
+#: head fusion, pruning and depth against measured focus ratio on held-out
+#: images (see scripts/tune_rollout.py): max-fusion from block 6 lands on the
+#: lesion 1.89x better than chance at the median and beats chance on 84% of
+#: images, against 1.10 / 62% for mean-fusion over all blocks.
+ROLLOUT_START_LAYER = 6
+
 
 def _attention_matrix(attn: nn.Module, x: torch.Tensor,
                       rel_pos_bias: torch.Tensor | None) -> torch.Tensor:
@@ -123,11 +130,17 @@ class TrunkWrapper(nn.Module):
         n = x.shape[1]
         eye = torch.eye(n, dtype=x.dtype, device=x.device).unsqueeze(0)
         roll = eye
-        for blk in vit.blocks:
-            a = _attention_matrix(blk.attn, blk.norm1(x), rel_pos_bias)
-            a = a.mean(dim=1) + eye                 # average heads, add residual
-            a = a / a.sum(dim=-1, keepdim=True)
-            roll = a @ roll
+        for i, blk in enumerate(vit.blocks):
+            if i >= ROLLOUT_START_LAYER:
+                a = _attention_matrix(blk.attn, blk.norm1(x), rel_pos_bias)
+                # Max over heads, not mean: a few heads attend sharply to the
+                # lesion and the rest are diffuse, so averaging dilutes the
+                # signal. Starting at block 6 skips the early blocks, which
+                # attend almost uniformly and only add a background floor that
+                # compounds through the matrix product.
+                a = a.max(dim=1).values + eye
+                a = a / a.sum(dim=-1, keepdim=True)
+                roll = a @ roll
             x = blk(x, rel_pos_bias=rel_pos_bias)   # unchanged original path
 
         return vit.norm(x), roll[:, 0, 1:]

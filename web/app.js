@@ -6,7 +6,7 @@ import { loadModel, isLoaded } from './lib/model.js';
 // Model files are served with an immutable cache header, so the URLs carry
 // a content hash. Without it a browser keeps the previous model forever and
 // silently mixes a new graph with a stale head.
-const MODEL_URL = './model/panderm_vit_int8.onnx?v=a500fca1';
+const MODEL_URL = './model/panderm_vit_int8.onnx?v=b8a38550';
 const HEAD_URL = './model/head.json?v=b548555a';
 
 const $ = (id) => document.getElementById(id);
