@@ -48,7 +48,7 @@ class TestPipelineEndToEnd:
     def test_gradcam_target_matches_the_prediction(self, analyzer, round_lesion):
         """The heatmap must explain the class that was actually reported."""
         result = analyzer.analyse(round_lesion, age=45, sex="female", site="trunk")
-        assert result.gradcam.target_class_name == result.prediction.label
+        assert result.gradcam.target_class_name == result.prediction.diagnosis
 
     def test_explain_can_be_disabled(self, analyzer, round_lesion):
         result = analyzer.analyse(round_lesion, age=45, sex="female", site="trunk",

@@ -224,10 +224,10 @@ train:
 # Evaluation
 # ---------------------------------------------------------------------------
 evaluate:
-  metrics_json: outputs/metrics.json
-  metrics_csv: outputs/per_class_metrics.csv
-  confusion_matrix_png: outputs/confusion_matrix.png
-  roc_curve_png: outputs/roc_curves.png
+  metrics_json: outputs/metrics_image_only.json
+  metrics_csv: outputs/per_class_metrics_image_only.csv
+  confusion_matrix_png: outputs/confusion_matrix_image_only.png
+  roc_curve_png: outputs/roc_curves_image_only.png
 
 # ---------------------------------------------------------------------------
 # Explainability

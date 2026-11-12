@@ -12,7 +12,7 @@ import pytest
 import torch
 
 from src.backbone import BackboneUnavailable, build_backbone
-from src.dataset import metadata_dim
+from src.dataset import diagnosis_classes, metadata_dim
 from src.model.fusion import FusionHead, MetadataEncoder
 from src.model.risk_classifier import (
     GradCAMTarget,
@@ -158,7 +158,8 @@ class TestRiskClassifier:
     def test_forward_shape(self, model, fast_cfg):
         images = torch.randn(2, 3, 224, 224)
         meta = torch.randn(2, metadata_dim(fast_cfg))
-        assert model(images, meta).shape == (2, 3)
+        n = len(diagnosis_classes(fast_cfg))
+        assert model(images, meta).shape == (2, n)
 
     def test_backbone_is_frozen_by_default(self, model):
         assert all(not p.requires_grad for p in model.backbone.parameters())
@@ -175,14 +176,20 @@ class TestRiskClassifier:
         head_params = list(model.head.parameters())
         assert len(trainable) == len(head_params)
 
-    def test_predict_returns_a_valid_distribution(self, model, round_lesion):
+    def test_predict_returns_a_valid_distribution(self, model, round_lesion, fast_cfg):
         prediction = model.predict(round_lesion, age=50, sex="male", site="trunk")
         assert isinstance(prediction, RiskPrediction)
-        assert prediction.label in model.classes
-        assert 0.0 <= prediction.confidence <= 1.0
+        # The network predicts a lesion type; the risk tier is derived from it.
+        assert prediction.diagnosis in model.classes
+        assert prediction.label in fast_cfg.get("labels.risk_classes")
+        assert 0.0 <= prediction.diagnosis_confidence <= 1.0
+        assert sum(prediction.diagnosis_probabilities.values()) == pytest.approx(1.0, abs=1e-5)
+        assert prediction.diagnosis_confidence == pytest.approx(
+            max(prediction.diagnosis_probabilities.values()))
+        # Tier confidence is the summed mass of every diagnosis in that tier,
+        # so it is at least the top diagnosis's own probability.
+        assert prediction.confidence >= prediction.diagnosis_confidence - 1e-6
         assert sum(prediction.probabilities.values()) == pytest.approx(1.0, abs=1e-5)
-        assert prediction.confidence == pytest.approx(
-            max(prediction.probabilities.values()))
 
     def test_predict_keeps_features_for_change_detection(self, model, round_lesion):
         prediction = model.predict(round_lesion, 50, "male", "trunk")
@@ -191,12 +198,15 @@ class TestRiskClassifier:
 
     def test_predict_tolerates_missing_metadata(self, model, round_lesion):
         prediction = model.predict(round_lesion, None, None, None)
-        assert prediction.label in model.classes
+        assert prediction.diagnosis in model.classes
 
     def test_prediction_to_dict_excludes_features(self, model, round_lesion):
         payload = model.predict(round_lesion, 50, "male", "trunk").to_dict()
         assert "features" not in payload
-        assert set(payload) == {"label", "confidence", "probabilities", "low_confidence"}
+        assert set(payload) == {
+            "diagnosis", "diagnosis_name", "diagnosis_description",
+            "diagnosis_confidence", "diagnosis_probabilities",
+            "label", "confidence", "probabilities", "low_confidence"}
 
     def test_checkpoint_round_trip(self, fast_cfg, tmp_path, round_lesion):
         """A saved head must reproduce its predictions when reloaded.
@@ -271,28 +281,30 @@ class TestGradCAMTarget:
         model = RiskClassifier(build_backbone(fast_cfg), fast_cfg).eval()
         meta = torch.zeros(1, metadata_dim(fast_cfg))
         wrapped = GradCAMTarget(model, meta).eval()
-        assert wrapped(torch.randn(1, 3, 224, 224)).shape == (1, 3)
+        n = len(diagnosis_classes(fast_cfg))
+        assert wrapped(torch.randn(1, 3, 224, 224)).shape == (1, n)
 
     def test_broadcasts_metadata_across_a_batch(self, fast_cfg):
         model = RiskClassifier(build_backbone(fast_cfg), fast_cfg).eval()
         wrapped = GradCAMTarget(model, torch.zeros(1, metadata_dim(fast_cfg))).eval()
-        assert wrapped(torch.randn(4, 3, 224, 224)).shape == (4, 3)
+        n = len(diagnosis_classes(fast_cfg))
+        assert wrapped(torch.randn(4, 3, 224, 224)).shape == (4, n)
 
 
 class TestTrainingHelpers:
     def test_class_weights_favour_rare_classes(self):
         import pandas as pd
 
-        frame = pd.DataFrame({"risk_label": ["Low"] * 90 + ["Moderate"] * 9 + ["High"]})
-        weights = compute_class_weights(frame, ["Low", "Moderate", "High"])
+        frame = pd.DataFrame({"diagnosis": ["NEV"] * 90 + ["ACK"] * 9 + ["MEL"]})
+        weights = compute_class_weights(frame, ["NEV", "ACK", "MEL"])
         assert weights[2] > weights[1] > weights[0], \
             "Rarer classes must receive larger loss weights"
 
     def test_absent_class_gets_zero_weight(self):
         import pandas as pd
 
-        frame = pd.DataFrame({"risk_label": ["Low"] * 10})
-        weights = compute_class_weights(frame, ["Low", "Moderate", "High"])
+        frame = pd.DataFrame({"diagnosis": ["NEV"] * 10})
+        weights = compute_class_weights(frame, ["NEV", "ACK", "MEL"])
         assert weights[1] == 0.0 and weights[2] == 0.0
 
     def test_macro_f1_perfect_and_worst(self):

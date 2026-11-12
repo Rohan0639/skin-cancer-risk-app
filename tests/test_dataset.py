@@ -139,13 +139,15 @@ def _fake_dataset(n_lesions: int = 30, shots: int = 2) -> pd.DataFrame:
     """Build a unified-schema frame with several images per lesion."""
     rows = []
     classes = ["Low", "Moderate", "High"]
+    diagnoses = ["NEV", "ACK", "MEL"]          # one per tier, in the same order
     for i in range(n_lesions):
         risk = classes[i % len(classes)]
+        dx = diagnoses[i % len(diagnoses)]
         for shot in range(shots):
             rows.append({
                 "image_path": f"img_{i}_{shot}.png",
                 "age": 40 + i, "sex": "male", "site": "trunk",
-                "diagnosis": "x", "risk_label": risk,
+                "diagnosis": dx, "risk_label": risk,
                 "source": "test", "lesion_id": f"lesion_{i}",
             })
     return pd.DataFrame(rows, columns=UNIFIED_COLUMNS)
@@ -174,7 +176,7 @@ class TestSplitting:
 
     def test_every_class_survives_in_training(self, cfg):
         train, _, _ = group_aware_split(_fake_dataset(), cfg)
-        counts = class_distribution(train, cfg.get("labels.risk_classes"))
+        counts = class_distribution(train, ["NEV", "ACK", "MEL"])
         assert all(count > 0 for count in counts.values())
 
     def test_split_is_reproducible(self, cfg):

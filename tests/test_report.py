@@ -23,14 +23,40 @@ from src.report.report_generator import (
 from src.tracking.change_detection import ChangeResult
 
 
+#: One representative diagnosis per risk tier, so a test can ask for a tier
+#: and get a prediction whose diagnosis actually implies it.
+_DX_FOR_TIER = {"Low": "NEV", "Moderate": "ACK", "High": "MEL"}
+
+
 def make_prediction(label: str = "Low", confidence: float = 0.9,
                     low_confidence: bool = False) -> RiskPrediction:
-    """Build a RiskPrediction with a valid probability distribution."""
+    """Build a RiskPrediction for a given risk tier.
+
+    The model predicts a lesion type and the tier is derived from it, so this
+    picks a diagnosis that maps to the requested tier rather than setting the
+    tier directly.
+    """
     remainder = (1.0 - confidence) / 2
     probabilities = {name: remainder for name in RISK_ORDER}
     probabilities[label] = confidence
-    return RiskPrediction(label=label, confidence=confidence,
-                          probabilities=probabilities, low_confidence=low_confidence)
+
+    code = _DX_FOR_TIER[label]
+    dx_probabilities = {c: 0.0 for c in ("NEV", "SEK", "ACK", "BCC", "SCC", "MEL")}
+    dx_probabilities[code] = confidence
+    for other in dx_probabilities:
+        if other != code:
+            dx_probabilities[other] = (1.0 - confidence) / 5
+
+    return RiskPrediction(
+        diagnosis=code,
+        diagnosis_name=code,
+        diagnosis_confidence=confidence,
+        diagnosis_probabilities=dx_probabilities,
+        label=label,
+        confidence=confidence,
+        probabilities=probabilities,
+        low_confidence=low_confidence,
+    )
 
 
 def make_abcde(n_flagged: int = 0, confident: bool = True) -> ABCDEReport:
