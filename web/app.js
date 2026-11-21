@@ -1,50 +1,132 @@
-/** UI wiring for the in-browser screening app. */
+/** UI for the lesion check app: pick or capture a photo, analyse, show result. */
 
-import { analyse, CFG } from './lib/pipeline.js';
+import { analyse } from './lib/pipeline.js';
 import { loadModel, isLoaded } from './lib/model.js';
 
-// Model files are served with an immutable cache header, so the URLs carry
-// a content hash. Without it a browser keeps the previous model forever and
-// silently mixes a new graph with a stale head.
+// Model files carry a content hash: they are served immutable, so without one
+// a browser keeps the previous model forever and silently pairs a stale head
+// with a new graph.
 const MODEL_URL = './model/panderm_vit_int8.onnx?v=b8a38550';
-const HEAD_URL = './model/head.json?v=b548555a';
+const HEAD_URL = './model/head.json?v=63f065b4';
 
 const $ = (id) => document.getElementById(id);
-const state = { img: null, prevImg: null, ready: false };
+const state = { img: null, stream: null };
 
-// --- model loading ---------------------------------------------------------
+// --- photo input -----------------------------------------------------------
+
+function showImage(src) {
+  stopCamera();
+  const img = new Image();
+  img.onload = () => {
+    state.img = img;
+    $('preview').src = src;
+    $('preview').hidden = false;
+    $('dropText').hidden = true;
+    $('run').disabled = false;
+  };
+  img.src = src;
+}
+
+function readFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => showImage(reader.result);
+  reader.readAsDataURL(file);
+}
+
+$('file').addEventListener('change', (e) => readFile(e.target.files[0]));
+$('btnFile').addEventListener('click', () => $('file').click());
+$('drop').addEventListener('click', () => {
+  if (!state.stream) $('file').click();
+});
+
+$('drop').addEventListener('dragover', (e) => { e.preventDefault(); });
+$('drop').addEventListener('drop', (e) => {
+  e.preventDefault();
+  readFile(e.dataTransfer.files[0]);
+});
+
+// --- camera ----------------------------------------------------------------
+
+async function startCamera() {
+  try {
+    // Rear camera where there is one; falls back to whatever is available.
+    state.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+      audio: false
+    });
+  } catch (err) {
+    $('dropText').hidden = false;
+    $('dropText').textContent =
+      'Camera unavailable — choose a photo instead.';
+    return;
+  }
+  const v = $('cam');
+  v.srcObject = state.stream;
+  await v.play();
+  v.hidden = false;
+  $('preview').hidden = true;
+  $('dropText').hidden = true;
+  $('pickRow').hidden = true;
+  $('camRow').hidden = false;
+}
+
+function stopCamera() {
+  if (state.stream) {
+    state.stream.getTracks().forEach((t) => t.stop());
+    state.stream = null;
+  }
+  $('cam').hidden = true;
+  $('pickRow').hidden = false;
+  $('camRow').hidden = true;
+}
+
+$('btnCam').addEventListener('click', startCamera);
+$('btnCancel').addEventListener('click', () => {
+  stopCamera();
+  if (!state.img) $('dropText').hidden = false;
+});
+$('btnShot').addEventListener('click', () => {
+  const v = $('cam');
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  showImage(c.toDataURL('image/jpeg', 0.92));
+});
+
+// --- model -----------------------------------------------------------------
 
 async function ensureModel() {
   if (isLoaded()) return;
-  const bar = $('loadBar');
-  const wrap = $('loading');
-  const label = $('loadLabel');
-  wrap.hidden = false;
-  try {
-    await loadModel(MODEL_URL, HEAD_URL, (stage, pct) => {
-      label.textContent = pct >= 1 ? stage : `${stage} — ${Math.round(pct * 100)}%`;
-      bar.style.width = `${Math.round(pct * 100)}%`;
-    });
-    state.ready = true;
-    wrap.hidden = true;
-    $('status').innerHTML =
-      '<span class="ok">PanDerm loaded — running entirely in your browser</span>';
-  } catch (err) {
-    wrap.hidden = true;
-    $('status').innerHTML = `<span class="bad">Could not load the model: ${err.message}</span>`;
-    throw err;
-  }
+  $('load').hidden = false;
+  await loadModel(MODEL_URL, HEAD_URL, (stage, pct) => {
+    $('loadText').textContent = pct >= 1 ? stage : `${stage} — ${Math.round(pct * 100)}%`;
+    $('bar').style.width = `${Math.round(pct * 100)}%`;
+  });
+  $('load').hidden = true;
 }
 
-// --- rendering -------------------------------------------------------------
+// --- heatmap ---------------------------------------------------------------
 
-function heatmapCanvas(relevance, grid, srcImg, w, h) {
+function jet(v) {
+  v = Math.min(1, Math.max(0, v));
+  return [
+    Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * v - 3)))),
+    Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * v - 2)))),
+    Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * v - 1))))
+  ];
+}
+
+function drawPhoto(img, w, h) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.drawImage(srcImg, 0, 0, w, h);
+  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  return c;
+}
 
-  // Bilinear upsample of the grid, drawn as a translucent jet overlay.
+function drawHeatmap(img, relevance, grid, w, h) {
+  const c = drawPhoto(img, w, h);
+  const ctx = c.getContext('2d');
   const overlay = ctx.createImageData(w, h);
   for (let y = 0; y < h; y++) {
     const gy = (y / h) * grid - 0.5;
@@ -64,7 +146,7 @@ function heatmapCanvas(relevance, grid, srcImg, w, h) {
       const [r, g, b] = jet(v);
       const i = (y * w + x) * 4;
       overlay.data[i] = r; overlay.data[i + 1] = g; overlay.data[i + 2] = b;
-      overlay.data[i + 3] = Math.round(150 * Math.min(1, Math.max(0, v)) + 40);
+      overlay.data[i + 3] = Math.round(140 * Math.min(1, Math.max(0, v)) + 25);
     }
   }
   const tmp = document.createElement('canvas');
@@ -74,159 +156,112 @@ function heatmapCanvas(relevance, grid, srcImg, w, h) {
   return c;
 }
 
-function jet(v) {
-  v = Math.min(1, Math.max(0, v));
-  const r = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * v - 3))));
-  const g = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * v - 2))));
-  const b = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * v - 1))));
-  return [r, g, b];
-}
+// --- result ----------------------------------------------------------------
 
 function render(result) {
-  const { report, relevance, grid, width, height, focusRatio } = result;
-  const out = $('result');
-  out.hidden = false;
+  const { report, relevance, grid, width, height } = result;
+  const card = $('resultCard');
+  const tier = report.level.toLowerCase();
 
-  const cls = report.level.toLowerCase();
-  const pct = (v) => `${Math.round(v * 100)}%`;
+  // The model picks from six lesion types and cannot say "something else", so
+  // anything outside them is forced into one of the six. Treat a weak top
+  // probability, or an escalation, as "do not name a diagnosis confidently" --
+  // and never pair a reassuring description with raised advice.
+  const escalated = report.level !== report.modelLevel;
+  const uncertain = report.diagnosisConfidence < 0.5 || escalated;
 
-  // Lead with what the lesion appears to be, then what to do about it.
-  let html = `
-    <div class="verdict ${cls}">
-      <div class="vlabel">Most likely</div>
-      <div class="vlevel">${report.diagnosisName}</div>
-      <p class="dxdesc">${report.diagnosisDescription}</p>
-      <p class="vrec"><strong>${report.level} risk — ${report.recommendation}</strong></p>
+  const poor = report.quality && !report.quality.passed
+    ? `<p class="warn">Photo quality is poor — ${report.quality.reason}
+       Retake it for a more reliable result.</p>` : '';
+
+  let head;
+  if (uncertain) {
+    const alts = report.ranked.slice(0, 3)
+      .map((r) => `<li><span>${r.name}</span><b>${Math.round(r.p * 100)}%</b></li>`)
+      .join('');
+    head = `
+      <div class="verdict ${tier}">
+        <div class="vk">Not confident</div>
+        <div class="vn">${report.level} risk</div>
+        <p class="vd">The model could not identify this with confidence. Its
+          closest matches are below — treat them as guesses, not a diagnosis.</p>
+        <ul class="alts">${alts}</ul>
+        <p class="vr">${report.recommendation}</p>
+      </div>`;
+  } else {
+    head = `
+      <div class="verdict ${tier}">
+        <div class="vk">Most likely</div>
+        <div class="vn">${report.diagnosisName}</div>
+        <p class="vd">${report.diagnosisDescription}</p>
+        <p class="vr">${report.level} risk — ${report.recommendation}</p>
+      </div>`;
+  }
+
+  card.innerHTML = `
+    ${poor}
+    ${head}
+    <div class="pair">
+      <figure><figcaption>Photo</figcaption><div id="pA"></div></figure>
+      <figure><figcaption>What the model looked at</figcaption><div id="pB"></div></figure>
+    </div>
+    <div class="expl">
+      <h3>Why</h3>
+      <ul id="why"></ul>
+    </div>
+    <p class="scope">Recognises six common lesion types only: mole, seborrhoeic
+      keratosis, actinic keratosis, basal cell carcinoma, squamous cell carcinoma
+      and melanoma. Anything else — including rarer cancers — will be given one
+      of these labels in error.</p>
+    <div class="row" style="margin-top:1rem">
+      <button id="again">Check another photo</button>
     </div>`;
 
-  // A six-way call at ~71% accuracy is not a single confident answer, so the
-  // runners-up are shown rather than hidden behind one headline.
-  html += '<h3>Other possibilities</h3><ul class="ranked">';
-  for (const r of report.ranked.slice(0, 4)) {
-    const lead = r.code === report.diagnosis ? ' lead' : '';
-    html += `<li class="${lead}"><span class="bar" style="width:${Math.max(2, r.p * 100)}%"></span>
-      <span class="nm">${r.name}</span><span class="pc">${pct(r.p)}</span></li>`;
-  }
-  html += '</ul>';
+  $('pA').appendChild(drawPhoto(state.img, width, height));
+  $('pB').appendChild(drawHeatmap(state.img, relevance, grid, width, height));
 
-  if (report.escalationReasons.length) {
-    html += `<p class="escalate">Advice raised to <strong>${report.level}</strong> because
-      ${report.escalationReasons.join('; ')}.</p>`;
-  }
-
-  html += `<div class="panes">
-      <figure><figcaption>Your photo</figcaption><div id="paneA"></div></figure>
-      <figure><figcaption>Where the model looked</figcaption><div id="paneB"></div></figure>
-    </div>`;
-
-  html += `<h3>ABCDE check</h3><p class="muted">${report.abcde.summary}</p><ul class="abcde">`;
+  const ul = $('why');
   for (const f of report.abcde.features) {
-    const tag = !f.measurable ? '<em class="na">not measured</em>'
-      : f.flagged ? '<em class="flag">worth attention</em>'
-      : '<em class="fine">looks fine</em>';
-    html += `<li><b>${f.letter}</b> <span class="t">${f.title}</span> ${tag}<p>${f.text}</p></li>`;
-  }
-  html += '</ul>';
-
-  if (report.change) {
-    html += `<p class="${report.change.changed ? 'warnbox' : 'okbox'}">
-      <strong>${report.change.changed ? 'Changed since your earlier photo' : 'No significant change'}.</strong>
-      ${report.change.reason}</p>`;
+    const cls = !f.measurable ? 'na' : (f.flagged ? 'flag' : 'ok');
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="dot ${cls}"></span><span>${f.text}</span>`;
+    ul.appendChild(li);
   }
 
-  // Caveats are collapsed: present and findable, but not shouting over the result.
-  if (report.notes.length) {
-    html += '<details class="notes"><summary>Caveats for this result</summary><ul>' +
-      report.notes.map((n) => `<li>${n}</li>`).join('') + '</ul></details>';
-  }
-
-  out.innerHTML = html;
-
-  const a = document.createElement('canvas');
-  a.width = width; a.height = height;
-  a.getContext('2d').drawImage(state.img, 0, 0, width, height);
-  $('paneA').appendChild(a);
-  $('paneB').appendChild(heatmapCanvas(relevance, grid, state.img, width, height));
-  if (focusRatio !== null) {
-    const cap = document.createElement('p');
-    cap.className = 'muted small';
-    cap.textContent = `${focusRatio.toFixed(1)}× more focused on the lesion than chance.`;
-    $('paneB').appendChild(cap);
-  }
-  out.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// --- events ----------------------------------------------------------------
-
-function readFile(file, slot) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => { state[slot] = img; resolve(img); };
-    img.src = URL.createObjectURL(file);
+  $('again').addEventListener('click', () => {
+    card.hidden = true;
+    $('inputCard').hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
+
+  $('inputCard').hidden = true;
+  card.hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-$('photo').addEventListener('change', async (e) => {
-  if (!e.target.files[0]) return;
-  await readFile(e.target.files[0], 'img');
-  $('photoName').textContent = e.target.files[0].name;
-  $('run').disabled = false;
-});
-
-$('prev').addEventListener('change', async (e) => {
-  if (!e.target.files[0]) return;
-  await readFile(e.target.files[0], 'prevImg');
-  $('prevName').textContent = e.target.files[0].name;
-});
-
-$('useScale').addEventListener('change', (e) => {
-  $('scaleWrap').hidden = !e.target.checked;
-});
+// --- run -------------------------------------------------------------------
 
 $('run').addEventListener('click', async () => {
   if (!state.img) return;
-  $('run').disabled = true;
-  $('run').textContent = 'Analysing…';
+  const btn = $('run');
+  btn.disabled = true;
+  btn.textContent = 'Analysing…';
   try {
     await ensureModel();
     const result = await analyse(state.img, {
       age: Number($('age').value),
       sex: $('sex').value,
       site: $('site').value,
-      frameWidthMm: $('useScale').checked ? Number($('frameMm').value) : 0,
-      prevImg: state.prevImg
+      frameWidthMm: 0,
+      prevImg: null
     });
     render(result);
   } catch (err) {
-    $('result').hidden = false;
-    $('result').innerHTML = `<p class="bad">Analysis failed: ${err.message}</p>`;
+    $('load').hidden = false;
+    $('loadText').textContent = `Could not analyse: ${err.message}`;
     console.error(err);
   } finally {
-    $('run').disabled = false;
-    $('run').textContent = 'Analyse photo';
+    btn.disabled = false;
+    btn.textContent = 'Analyse';
   }
-});
-
-// Samples bundled with the site so the app is usable with no photo to hand.
-document.querySelectorAll('[data-sample]').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    await new Promise((res, rej) => {
-      img.onload = res; img.onerror = rej;
-      img.src = btn.dataset.sample;
-    });
-    // Apply the sample's real patient metadata. Age and body site genuinely
-    // move the prediction, so running a real ISIC image against arbitrary
-    // form defaults would misrepresent the model.
-    if (btn.dataset.age) $('age').value = btn.dataset.age;
-    if (btn.dataset.sex) $('sex').value = btn.dataset.sex;
-    if (btn.dataset.site) $('site').value = btn.dataset.site;
-    state.img = img;
-    state.prevImg = null;
-    $('photoName').textContent = `${btn.textContent.trim()} (ISIC test image)`;
-    $('prevName').textContent = '';
-    $('run').disabled = false;
-    $('run').click();
-  });
 });

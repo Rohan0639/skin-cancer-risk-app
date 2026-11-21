@@ -197,9 +197,9 @@ backbone:
 # ---------------------------------------------------------------------------
 model:
   metadata_embed_dim: 32
-  image_proj_dim: 256
+  image_proj_dim: 128
   hidden_dims: [256, 128]
-  dropout: 0.3
+  dropout: 0.5
   use_metadata: true
 
 # ---------------------------------------------------------------------------
@@ -208,13 +208,14 @@ model:
 train:
   epochs: 15
   batch_size: 32
-  learning_rate: 0.001
-  weight_decay: 0.0001
+  learning_rate: 0.003
+  weight_decay: 0.01
   val_fraction: 0.15
   test_fraction: 0.15
   num_workers: 0                   # 0 is safest on Windows
   class_weighting: true            # counteract heavy class imbalance
-  early_stopping_patience: 5
+  early_stopping_patience: 8
+  label_smoothing: 0.1
   checkpoint_name: risk_head.pt
   cache_features: true             # precompute embeddings once, then train fast
   feature_cache_name: features.npz

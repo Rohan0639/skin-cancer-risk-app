@@ -228,10 +228,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="web/model")
     parser.add_argument("--opset", type=int, default=17)
+    parser.add_argument("--finetuned", default="",
+                        help="path to a finetune_backbone.py checkpoint; its "
+                             "backbone+head replace the frozen ones before export")
     args = parser.parse_args()
 
     cfg = load_config()
     model = load_risk_classifier(cfg=cfg, strict=True).eval()
+    if args.finetuned:
+        sd = torch.load(args.finetuned, map_location="cpu", weights_only=False)
+        model.backbone.load_state_dict(sd["backbone"])
+        model.head.load_state_dict(sd["head"])
+        model.eval()
+        logger.info("Loaded fine-tuned weights from %s (epoch %s, val macroF1 %.4f)",
+                    args.finetuned, sd.get("epoch"), sd.get("val_macro_f1", float("nan")))
     trunk = TrunkWrapper(model.backbone.model).eval()
 
     size = int(cfg.get("backbone.image_size", 224))

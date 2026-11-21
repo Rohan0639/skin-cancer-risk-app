@@ -22,6 +22,9 @@ export const CFG = {
   siteVocab: ['head_neck', 'trunk', 'upper_extremity', 'lower_extremity',
     'palms_soles', 'genital', 'unknown'],
   lowConfidence: 0.5,
+  // A more serious tier holding at least this share of the probability mass
+  // sets a floor on the advice, even when a milder tier narrowly leads.
+  tierMassFloor: 0.25,
   recommendations: {
     Low: 'Keep monitoring. Re-photograph this lesion in about 3 months and compare.',
     Moderate: 'Book a non-urgent appointment with a doctor or dermatologist to have this lesion checked.',
@@ -231,6 +234,20 @@ export function buildReport({ probs, classes, abcde, quality, change, focusRatio
     level = escalate(level);
     reasons.push(`the model was only ${Math.round(confidence * 100)}% confident`);
   }
+  // Taking the tier from the single top class lets a narrow plurality bury a
+  // serious alternative: a melanoma at 38% against a mole at 49% was reported
+  // as "Low risk - re-photograph in 3 months". Any graver tier holding a real
+  // share of the mass therefore raises the advice to its own level.
+  for (let i = ORDER.length - 1; i > ORDER.indexOf(level); i--) {
+    const mass = riskProbs[ORDER[i]] || 0;
+    if (mass >= CFG.tierMassFloor) {
+      reasons.push(
+        `${Math.round(mass * 100)}% of the model's confidence sits in ` +
+        `${ORDER[i].toLowerCase()}-risk diagnoses`);
+      level = ORDER[i];
+      break;
+    }
+  }
   if (change && change.changed) {
     level = escalate(level);
     reasons.push('the lesion has visibly changed since your earlier photo');
@@ -275,7 +292,9 @@ export function buildReport({ probs, classes, abcde, quality, change, focusRatio
 
 /** Run the whole pipeline on one image element. */
 export async function analyse(img, { age, sex, site, frameWidthMm, prevImg }) {
-  const W = 320;
+  // Never upscale: enlarging a small photo softens it and the blur check
+  // then fails its own test on an image that was perfectly sharp.
+  const W = Math.min(320, img.naturalWidth || 320);
   const H = Math.max(1, Math.round((img.naturalHeight / img.naturalWidth) * W));
   const full = rasterise(img, W, H);
 
@@ -302,7 +321,7 @@ export async function analyse(img, { age, sex, site, frameWidthMm, prevImg }) {
 
   let change = null;
   if (prevImg) {
-    const pW = 320;
+    const pW = Math.min(320, prevImg.naturalWidth || 320);
     const pH = Math.max(1, Math.round((prevImg.naturalHeight / prevImg.naturalWidth) * pW));
     const pFull = rasterise(prevImg, pW, pH);
     const pSeg = cv.segment(pFull.data, pW, pH);

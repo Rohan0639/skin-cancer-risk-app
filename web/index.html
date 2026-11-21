@@ -2,270 +2,194 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Skin Lesion Risk Screening</title>
-<meta name="description" content="Explainable skin-lesion risk screening running entirely in your browser with PanDerm. A student research prototype — not a medical device.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skin Lesion Check</title>
+<meta name="description" content="Check a skin lesion photo. Runs entirely in your browser.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
-<!-- ONNX Runtime Web is self-hosted: COEP require-corp (needed for WASM
-     threads) would block a cross-origin CDN script. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap">
 <script src="./vendor/ort/ort.min.js"></script>
 <style>
   :root{
-    --bg:#fff; --surface:#f6f7f9; --border:#e3e6ea; --text:#16191d; --muted:#5b6672;
-    --accent:#2563eb; --low:#15803d; --mod:#b45309; --high:#b91c1c;
-    --warn-bg:#fff4f4; --warn-border:#f0b4b4; --warn-text:#8c1d1d; --radius:12px;
+    --bg:#f4f5f7; --card:#ffffff; --line:#e3e6ea; --soft:#f7f8fa;
+    --ink:#14171a; --ink-2:#5c6670; --ink-3:#8b959e;
+    --accent:#1f6feb; --accent-ink:#ffffff;
+    --low:#13794a; --low-bg:#e7f6ee;
+    --mod:#9a5b00; --mod-bg:#fdf1de;
+    --high:#b3261e; --high-bg:#fdecea;
+    --r:14px;
   }
   @media (prefers-color-scheme:dark){ :root:not([data-theme=light]){
-    --bg:#0f1216; --surface:#171b21; --border:#282f38; --text:#e8ecf1; --muted:#9aa6b4;
-    --accent:#6ea8ff; --low:#4ade80; --mod:#fbbf24; --high:#f87171;
-    --warn-bg:#2a1518; --warn-border:#6b2b2b; --warn-text:#ffb4b4;
+    --bg:#0e1113; --card:#171b1f; --line:#2a3137; --soft:#1d2227;
+    --ink:#e9edf0; --ink-2:#a2acb4; --ink-3:#737e87;
+    --accent:#4d8ef7; --accent-ink:#06131f;
+    --low:#4ade80; --low-bg:#10281c;
+    --mod:#fbbf24; --mod-bg:#2b2113;
+    --high:#f87171; --high-bg:#2c1614;
+    color-scheme:dark;
   }}
   :root[data-theme=dark]{
-    --bg:#0f1216; --surface:#171b21; --border:#282f38; --text:#e8ecf1; --muted:#9aa6b4;
-    --accent:#6ea8ff; --low:#4ade80; --mod:#fbbf24; --high:#f87171;
-    --warn-bg:#2a1518; --warn-border:#6b2b2b; --warn-text:#ffb4b4;
+    --bg:#0e1113; --card:#171b1f; --line:#2a3137; --soft:#1d2227;
+    --ink:#e9edf0; --ink-2:#a2acb4; --ink-3:#737e87;
+    --accent:#4d8ef7; --accent-ink:#06131f;
+    --low:#4ade80; --low-bg:#10281c;
+    --mod:#fbbf24; --mod-bg:#2b2113;
+    --high:#f87171; --high-bg:#2c1614;
+    color-scheme:dark;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-    font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:62rem;margin:0 auto;padding:0 16px}
-  h1{font-size:clamp(1.9rem,5vw,2.9rem);letter-spacing:-.02em;margin:.2em 0}
-  h2{font-size:clamp(1.3rem,3vw,1.7rem);margin:0 0 .5em}
-  h3{font-size:1.05rem;margin:1.6em 0 .5em}
-  p{margin:0 0 1em}
-  a{color:var(--accent)}
-  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em;
-    background:var(--surface);padding:.1em .4em;border-radius:5px;border:1px solid var(--border)}
-  header{padding:3rem 0 1rem;text-align:center}
-  .eyebrow{display:inline-block;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;
-    color:var(--muted);border:1px solid var(--border);padding:.3rem .8rem;border-radius:999px}
-  .lede{color:var(--muted);max-width:44rem;margin:.6rem auto 1.4rem;font-size:1.05rem}
-  .disclaimer{background:var(--warn-bg);border:1.5px solid var(--warn-border);color:var(--warn-text);
-    border-radius:var(--radius);padding:1rem 1.15rem;margin:1.4rem auto 0;max-width:50rem;text-align:left}
-  .disclaimer strong{display:block;margin-bottom:.25rem}
-  section{padding:2.2rem 0;border-top:1px solid var(--border)}
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem}
-  .row{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))}
-  label{display:block;font-size:.84rem;font-weight:600;margin-bottom:.3rem}
-  select,input[type=number]{width:100%;padding:.55rem .6rem;border-radius:8px;
-    border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit;font-size:.95rem}
-  .file{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin:.4rem 0 0}
-  .file input{display:none}
-  .fbtn{display:inline-block;padding:.5rem 1rem;border:1px solid var(--border);border-radius:8px;
-    background:var(--bg);cursor:pointer;font-size:.92rem;font-weight:600}
-  .fbtn:hover{border-color:var(--accent)}
-  .fname{font-size:.86rem;color:var(--muted)}
-  button.run{margin-top:1.1rem;padding:.75rem 1.5rem;border:0;border-radius:9px;
-    background:var(--accent);color:#fff;font:inherit;font-weight:700;cursor:pointer;font-size:1rem}
-  button.run:disabled{opacity:.5;cursor:not-allowed}
-  .samples{margin-top:.9rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-  .samples button{padding:.4rem .85rem;border:1px solid var(--border);border-radius:999px;
-    background:var(--bg);color:var(--text);font:inherit;font-size:.85rem;cursor:pointer}
-  .samples button:hover{border-color:var(--accent)}
-  #loading{margin-top:1rem}
-  .track{height:7px;background:var(--border);border-radius:99px;overflow:hidden}
-  .track>div{height:100%;width:0;background:var(--accent);transition:width .25s}
-  #status{margin-top:.8rem;font-size:.88rem}
-  .ok{color:var(--low);font-weight:600}
-  .bad{color:var(--high);font-weight:600}
-  .verdict{border-left:6px solid var(--muted);background:var(--surface);
-    padding:1rem 1.2rem;border-radius:0 var(--radius) var(--radius) 0;margin-bottom:1rem}
-  .verdict.low{border-color:var(--low)} .verdict.moderate{border-color:var(--mod)}
-  .verdict.high{border-color:var(--high)}
-  .vlabel{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-  .vlevel{font-size:2rem;font-weight:800;line-height:1.1}
-  .verdict.low .vlevel{color:var(--low)} .verdict.moderate .vlevel{color:var(--mod)}
-  .verdict.high .vlevel{color:var(--high)}
-  .vrec{margin:.5rem 0 0}
-  .metrics{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));margin-bottom:1rem}
-  .metrics div{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:.6rem .8rem}
-  .metrics span{display:block;font-size:.76rem;color:var(--muted)}
-  .metrics strong{font-size:1.3rem}
-  .escalate{background:var(--surface);border:1px solid var(--mod);border-radius:9px;padding:.7rem .95rem;margin-bottom:1rem}
-  .panes{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))}
-  .panes figure{margin:0}
-  .panes figcaption{font-weight:600;margin-bottom:.4rem}
-  .panes canvas{width:100%;height:auto;border:1px solid var(--border);border-radius:var(--radius);display:block}
-  ul.abcde{list-style:none;padding:0;margin:0}
-  ul.abcde li{border:1px solid var(--border);border-radius:9px;padding:.7rem .9rem;margin-bottom:.5rem;background:var(--surface)}
-  ul.abcde b{display:inline-block;min-width:1.3rem;font-size:1.05rem}
-  ul.abcde .t{font-weight:600}
-  ul.abcde em{font-style:normal;font-size:.78rem;padding:.1rem .5rem;border-radius:99px;margin-left:.4rem}
-  .flag{background:color-mix(in srgb,var(--high) 18%,transparent);color:var(--high)}
-  .fine{background:color-mix(in srgb,var(--low) 18%,transparent);color:var(--low)}
-  .na{background:var(--border);color:var(--muted)}
-  ul.abcde p{margin:.4rem 0 0;font-size:.92rem;color:var(--muted)}
-  ul.notes{padding-left:1.1rem} ul.notes li{margin-bottom:.45rem;font-size:.92rem;color:var(--muted)}
-  .okbox{background:color-mix(in srgb,var(--low) 12%,transparent);padding:.7rem .95rem;border-radius:9px}
-  .warnbox{background:color-mix(in srgb,var(--mod) 14%,transparent);padding:.7rem .95rem;border-radius:9px}
-  .muted{color:var(--muted)} .small{font-size:.85rem}
-  table{width:100%;border-collapse:collapse;font-size:.93rem}
-  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}
-  th{font-size:.76rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
-  .dxdesc{margin:.3rem 0 .6rem;color:var(--muted)}
-  ul.ranked{list-style:none;padding:0;margin:0 0 1.2rem}
-  ul.ranked li{position:relative;display:flex;align-items:center;gap:.6rem;
-    padding:.45rem .7rem;margin-bottom:.3rem;border-radius:7px;overflow:hidden;
-    background:var(--surface);border:1px solid var(--border);font-size:.93rem}
-  ul.ranked li.lead{border-color:var(--accent)}
-  ul.ranked .bar{position:absolute;left:0;top:0;bottom:0;background:var(--accent);opacity:.14}
-  ul.ranked .nm{position:relative;flex:1}
-  ul.ranked .pc{position:relative;font-variant-numeric:tabular-nums;font-weight:600}
-  details.notes{margin-top:1rem;border:1px solid var(--border);border-radius:9px;padding:.6rem .9rem}
-  details.notes summary{cursor:pointer;font-size:.9rem;color:var(--muted)}
-  details.notes ul{margin:.6rem 0 0;padding-left:1.1rem}
-  details.notes li{font-size:.9rem;color:var(--muted);margin-bottom:.4rem}
-  footer{border-top:1px solid var(--border);padding:2rem 0 3rem;color:var(--muted);font-size:.87rem}
-  footer a{color:var(--muted)}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+    font-family:"Inter Tight",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:30rem;margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left,0px));
+    padding-right:max(16px,env(safe-area-inset-right,0px));
+    padding-block:1.75rem 2.5rem}
+  h1{font-size:1.4rem;font-weight:700;margin:0;letter-spacing:-.02em}
+  .tag{font-size:.82rem;color:var(--ink-3);margin:.15rem 0 1.1rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card + .card{margin-top:.85rem}
+
+  /* drop / preview */
+  .drop{border:1.5px dashed var(--line);border-radius:12px;background:var(--soft);
+    aspect-ratio:4/3;display:grid;place-items:center;text-align:center;
+    cursor:pointer;overflow:hidden;position:relative}
+  .drop:hover{border-color:var(--accent)}
+  .drop p{margin:0;color:var(--ink-3);font-size:.9rem;padding:1rem}
+  .drop img,.drop video,.drop canvas{width:100%;height:100%;object-fit:cover;display:block}
+  input[type=file]{display:none}
+
+  .row{display:flex;gap:.55rem;margin-top:.75rem}
+  .row>*{flex:1}
+  button{font:inherit;font-weight:600;border-radius:10px;cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);
+    padding:.7rem .9rem;transition:.12s}
+  button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);
+    padding:.85rem;font-size:1.02rem}
+  button.primary:hover:not(:disabled){filter:brightness(1.07);color:var(--accent-ink)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+
+  .fields{display:grid;grid-template-columns:4.6rem 1fr 1fr;gap:.5rem;margin-top:.75rem}
+  .fields label{display:block;font-size:.72rem;color:var(--ink-3);margin-bottom:.2rem;
+    text-transform:uppercase;letter-spacing:.05em}
+  select,input[type=number]{width:100%;padding:.52rem .5rem;border-radius:9px;
+    border:1px solid var(--line);background:var(--soft);color:var(--ink);
+    font:inherit;font-size:.92rem}
+
+  /* progress */
+  #load{margin-top:.8rem}
+  .bar{height:5px;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar>div{height:100%;width:0;background:var(--accent);transition:width .25s}
+  .note{font-size:.78rem;color:var(--ink-3);margin:.45rem 0 0;text-align:center}
+
+  /* result */
+  .verdict{border-radius:12px;padding:.95rem 1.1rem}
+  .verdict.low{background:var(--low-bg)} .verdict.moderate{background:var(--mod-bg)}
+  .verdict.high{background:var(--high-bg)}
+  .vk{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;opacity:.75}
+  .vn{font-size:1.5rem;font-weight:700;line-height:1.2;margin:.1rem 0 .1rem}
+  .verdict.low .vn{color:var(--low)} .verdict.moderate .vn{color:var(--mod)}
+  .verdict.high .vn{color:var(--high)}
+  .vd{font-size:.92rem;color:var(--ink-2);margin:0}
+  .vr{margin:.6rem 0 0;font-size:.95rem;font-weight:600}
+
+.alts{list-style:none;margin:.6rem 0 0;padding:0}
+  .alts li{display:flex;justify-content:space-between;gap:.6rem;
+    padding:.3rem 0;font-size:.9rem;border-bottom:1px solid rgba(128,128,128,.18)}
+  .alts li:last-child{border-bottom:0}
+  .alts b{font-variant-numeric:tabular-nums}
+  .scope{margin:.9rem 0 0;font-size:.78rem;color:var(--ink-3);line-height:1.45}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:.9rem}
+  .pair figure{margin:0}
+  .pair figcaption{font-size:.74rem;color:var(--ink-3);margin-bottom:.3rem;text-align:center}
+  .pair canvas{width:100%;height:auto;display:block;border-radius:10px;border:1px solid var(--line)}
+
+  .expl{margin-top:.9rem}
+  .expl h3{font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--ink-3);margin:0 0 .45rem;font-weight:600}
+  .expl ul{list-style:none;margin:0;padding:0}
+  .expl li{display:flex;gap:.55rem;padding:.4rem 0;font-size:.9rem;color:var(--ink-2);
+    border-bottom:1px solid var(--line)}
+  .expl li:last-child{border-bottom:0}
+  .dot{flex:none;width:.52rem;height:.52rem;border-radius:50%;margin-top:.42rem}
+  .dot.ok{background:var(--low)} .dot.flag{background:var(--high)}
+  .dot.na{background:var(--ink-3);opacity:.45}
+
+.warn{margin:0 0 .8rem;padding:.6rem .8rem;border-radius:10px;font-size:.85rem;
+    background:var(--mod-bg);color:var(--mod);border:1px solid currentColor}
+  .disc{margin-top:.85rem;font-size:.78rem;color:var(--ink-3);text-align:center;
+    line-height:1.45}
+  .disc b{color:var(--ink-2)}
+  footer{margin-top:1.1rem;text-align:center;font-size:.72rem;color:var(--ink-3)}
+  footer a{color:var(--ink-3)}
+  [hidden]{display:none!important}
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<header>
-  <div class="wrap">
-    <span class="eyebrow">Student research prototype</span>
-    <h1>Skin Lesion Risk Screening</h1>
-    <p class="lede">
-      Explainable risk assessment powered by PanDerm, a dermatology foundation
-      model — running <strong>entirely in your browser</strong>. Your photo is
-      never uploaded anywhere.
-    </p>
-    <div class="disclaimer">
-      <strong>⚠️ This is not a medical device.</strong>
-      It has not been clinically validated, it does not provide a diagnosis, and
-      its output must never be used to rule out skin cancer. If you are worried
-      about a mark on your skin — or it is changing, bleeding, itching, or not
-      healing — see a doctor regardless of what this tool says.
+  <h1>Skin Lesion Check</h1>
+  <p class="tag">Runs on your device. Your photo is never uploaded.</p>
+
+  <!-- INPUT -->
+  <section class="card" id="inputCard">
+    <div class="drop" id="drop">
+      <p id="dropText">Tap to add a photo of the lesion</p>
+      <img id="preview" hidden alt="Selected lesion photo">
+      <video id="cam" hidden playsinline muted></video>
     </div>
-  </div>
-</header>
+    <input type="file" id="file" accept="image/*">
 
-<section>
-  <div class="wrap">
-    <h2>Analyse a lesion</h2>
-    <div class="card">
-      <div class="row">
-        <div>
-          <label for="age">Age</label>
-          <input type="number" id="age" value="45" min="0" max="110">
-        </div>
-        <div>
-          <label for="sex">Sex</label>
-          <select id="sex">
-            <option value="unknown" selected>Prefer not to say</option>
-            <option value="female">Female</option>
-            <option value="male">Male</option>
-          </select>
-        </div>
-        <div>
-          <label for="site">Where on the body?</label>
-          <select id="site">
-            <option value="trunk" selected>Trunk (chest, back, abdomen)</option>
-            <option value="head_neck">Head or neck</option>
-            <option value="upper_extremity">Arm or hand</option>
-            <option value="lower_extremity">Leg or foot</option>
-            <option value="palms_soles">Palm, sole or nail</option>
-            <option value="genital">Genital area</option>
-            <option value="unknown">Not sure</option>
-          </select>
-        </div>
-      </div>
-
-      <h3>Photo of the lesion</h3>
-      <div class="file">
-        <label class="fbtn" for="photo">Choose photo</label>
-        <input type="file" id="photo" accept="image/*">
-        <span class="fname" id="photoName">No file chosen</span>
-      </div>
-
-      <h3>Optional: an earlier photo of the same lesion</h3>
-      <p class="muted small" style="margin:.2rem 0 .4rem">
-        Change over time is one of the strongest warning signs, and the one
-        thing that cannot be judged from a single photo.
-      </p>
-      <div class="file">
-        <label class="fbtn" for="prev">Choose earlier photo</label>
-        <input type="file" id="prev" accept="image/*">
-        <span class="fname" id="prevName"></span>
-      </div>
-
-      <h3>Optional: give the photo a scale</h3>
-      <p class="muted small" style="margin:.2rem 0 .4rem">
-        A photo carries no scale, so millimetres can't be measured unless you
-        say how wide the picture is in real life. Photograph a ruler beside the
-        lesion to use this.
-      </p>
-      <label style="font-weight:400">
-        <input type="checkbox" id="useScale"> I know how wide the photo is
-      </label>
-      <div id="scaleWrap" hidden style="margin-top:.5rem;max-width:16rem">
-        <label for="frameMm">Photo width in real life (mm)</label>
-        <input type="number" id="frameMm" value="40" min="5" max="500" step="5">
-      </div>
-
-      <button class="run" id="run" disabled>Analyse photo</button>
-
-      <div class="samples">
-        <span class="muted small">No photo to hand?</span>
-        <button data-sample="./samples/nev.jpg?v=6f5656bb" data-age="55" data-sex="male" data-site="head_neck">Mole</button>
-        <button data-sample="./samples/ack.jpg?v=a6d91573" data-age="55" data-sex="unknown" data-site="head_neck">Actinic keratosis</button>
-        <button data-sample="./samples/mel.jpg?v=02aebecc" data-age="85" data-sex="female" data-site="lower_extremity">Melanoma</button>
-        <button data-sample="./samples/bcc.jpg?v=c1606428" data-age="70" data-sex="male" data-site="head_neck">Basal cell carcinoma</button>
-      </div>
-      <p class="muted small" style="margin-top:.6rem">
-        Real clinical photographs from the ISIC Archive, taken from the
-        held-out test split — the model never saw them during training.
-      </p>
-
-      <div id="loading" hidden>
-        <div class="track"><div id="loadBar"></div></div>
-        <p class="muted small" id="loadLabel" style="margin:.5rem 0 0">Preparing…</p>
-        <p class="muted small" style="margin:.2rem 0 0">
-          First run downloads the 83 MB model once, then it is cached by your browser.
-        </p>
-      </div>
-      <div id="status"></div>
+    <div class="row" id="pickRow">
+      <button id="btnFile">Choose photo</button>
+      <button id="btnCam">Use camera</button>
+    </div>
+    <div class="row" id="camRow" hidden>
+      <button id="btnShot" class="primary">Capture</button>
+      <button id="btnCancel">Cancel</button>
     </div>
 
-    <div id="result" hidden style="margin-top:1.5rem"></div>
-  </div>
-</section>
+    <div class="fields">
+      <div><label for="age">Age</label><input type="number" id="age" value="45" min="0" max="110"></div>
+      <div><label for="sex">Sex</label>
+        <select id="sex">
+          <option value="unknown" selected>—</option>
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+        </select></div>
+      <div><label for="site">Body area</label>
+        <select id="site">
+          <option value="trunk" selected>Trunk</option>
+          <option value="head_neck">Head / neck</option>
+          <option value="upper_extremity">Arm / hand</option>
+          <option value="lower_extremity">Leg / foot</option>
+          <option value="palms_soles">Palm / sole</option>
+          <option value="genital">Genital</option>
+          <option value="unknown">Not sure</option>
+        </select></div>
+    </div>
 
-<section>
-  <div class="wrap">
-    <h2>About this tool</h2>
-    <p>
-      PanDerm (ViT-B/16, a dermatology foundation model) runs in your browser
-      via ONNX Runtime Web. It classifies six lesion types and derives a risk
-      tier from the diagnosis, alongside a classical ABCDE check computed
-      independently of the network.
-    </p>
-    <p class="muted small">
-      Measured on 330 held-out real clinical photographs from the ISIC Archive:
-      <strong>macro F1 0.707</strong>, accuracy 0.721, ROC-AUC 0.946, melanoma
-      recall 0.90. An image-only ablation scores 0.668, so the photo does most
-      of the work and the age/site metadata adds about 0.04 — but it does shift
-      borderline cases, so changing those fields can change the answer.
-      The browser model is quantised to int8 to fit an 85 MB download.
-      Datasets over-represent lighter skin, so expect worse performance on
-      darker skin.
-    </p>
-  </div>
-</section>
+    <div class="row" style="margin-top:.85rem">
+      <button class="primary" id="run" disabled>Analyse</button>
+    </div>
 
-<footer>
-  <div class="wrap">
-    <p><strong>PanDerm</strong> — Yan et al., <em>Nature Medicine</em> (2025),
-      <a href="https://github.com/SiyuanYan1/PanDerm">github.com/SiyuanYan1/PanDerm</a>.
-      Weights are CC-BY-NC: non-commercial academic research only, with attribution.
-      This is a non-commercial student prototype on that basis.</p>
-    <p><strong>Grad-CAM</strong> — Selvaraju et al., <em>ICCV</em> (2017) ·
-      <strong>HAM10000</strong> — Tschandl et al., <em>Scientific Data</em> (2018) ·
-      <strong>PAD-UFES-20</strong> — Pacheco et al., <em>Data in Brief</em> (2020)</p>
-    <p><a href="https://github.com/Rohan0639/skin-cancer-risk-app">Source on GitHub</a> ·
-       <a href="https://huggingface.co/rohan0639/panderm-base-lp-fp16">Model weights</a></p>
-  </div>
-</footer>
+    <div id="load" hidden>
+      <div class="bar"><div id="bar"></div></div>
+      <p class="note" id="loadText">Preparing…</p>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="card" id="resultCard" hidden></section>
+
+  <p class="disc"><b>Not a medical device.</b> This is a student project and does not
+  provide a diagnosis. If a mark is changing, bleeding, itching or not healing,
+  see a doctor.</p>
+
+  <footer>Powered by <a href="https://github.com/SiyuanYan1/PanDerm">PanDerm</a> (CC&#8209;BY&#8209;NC)</footer>
+</div>
 
 <script type="module" src="./app.js"></script>
 </body>

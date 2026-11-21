@@ -51,7 +51,7 @@ from sklearn.metrics import (  # noqa: E402
 from src.config import Config, load_config  # noqa: E402
 from src.dataset import TARGET_COLUMN, build_metadata_matrix, load_unified_csv  # noqa: E402
 from src.model.risk_classifier import load_risk_classifier  # noqa: E402
-from src.model.train import SPLIT_FILENAME, extract_features  # noqa: E402
+from src.model.train import extract_features, split_filename  # noqa: E402
 from src.utils import ensure_dir, get_logger, resolve_device, set_seed  # noqa: E402
 
 logger = get_logger("evaluate")
@@ -71,7 +71,7 @@ def load_split(cfg: Config, split: str) -> pd.DataFrame:
         FileNotFoundError: If training has not been run, so no split exists.
         ValueError: If the split is empty.
     """
-    split_path = cfg.path("paths.output_dir") / SPLIT_FILENAME
+    split_path = cfg.path("paths.output_dir") / split_filename(cfg)
     if not split_path.exists():
         raise FileNotFoundError(
             f"No split file at {split_path}. Run: python src/model/train.py"

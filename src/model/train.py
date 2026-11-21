@@ -50,6 +50,13 @@ from src.utils import ensure_dir, get_logger, load_image_rgb, resolve_device, se
 logger = get_logger("train")
 
 SPLIT_FILENAME = "splits.csv"
+
+
+def split_filename(cfg) -> str:
+    """Split file name, derived from the checkpoint so benchmark runs on a
+    different dataset cannot overwrite the main run's split."""
+    stem = str(cfg.get("train.checkpoint_name", "risk_head.pt")).rsplit(".", 1)[0]
+    return SPLIT_FILENAME if stem == "risk_head" else f"splits_{stem}.csv"
 HISTORY_FILENAME = "training_history.json"
 
 
@@ -248,7 +255,9 @@ def train_on_cached_features(
 
     weights = (compute_class_weights(splits["train"], classes).to(device)
                if bool(cfg.get("train.class_weighting", True)) else None)
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    criterion = nn.CrossEntropyLoss(
+        weight=weights,
+        label_smoothing=float(cfg.get("train.label_smoothing", 0.0)))
     optimizer = torch.optim.AdamW(
         model.trainable_parameters(),
         lr=float(cfg.get("train.learning_rate", 1e-3)),
@@ -472,7 +481,7 @@ def run_training(cfg: Config, force_features: bool = False) -> Path:
     split_rows = pd.concat(
         [part.assign(split=name) for name, part in splits.items()], ignore_index=True
     )
-    split_path = output_dir / SPLIT_FILENAME
+    split_path = output_dir / split_filename(cfg)
     split_rows[["image_path", "diagnosis", "risk_label", "source", "split"]].to_csv(split_path, index=False)
     logger.info("Wrote split assignment -> %s", split_path)
 

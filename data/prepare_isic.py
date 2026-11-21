@@ -56,7 +56,21 @@ CLASS_QUERIES: Dict[str, str] = {
     "SCC": 'diagnosis_3:"Squamous cell carcinoma, NOS"',
 }
 
+#: Default imaging domain. Clinical close-ups are what the app receives;
+#: dermoscopy is taken through a contact lens and is a different domain, kept
+#: available only as a separate benchmark (see --image-type).
 IMAGE_TYPE = 'image_type:"clinical: close-up"'
+
+#: HAM10000 is ISIC collection 212, so the same API serves it.
+COLLECTIONS = {"ham10000": 212}
+
+#: Per-source query overrides. The archive's taxonomy is not uniform across
+#: collections: HAM10000 files its benign keratoses (bkl) under "Pigmented
+#: benign keratosis", and a query for "Seborrheic keratosis" returns nothing
+#: there, silently dropping an entire class.
+CLASS_QUERY_OVERRIDES: Dict[str, Dict[str, str]] = {
+    "ham10000": {"SEK": 'diagnosis_3:"Pigmented benign keratosis"'},
+}
 
 #: ISIC anatom_site_1 -> the project's canonical site vocabulary.
 SITE_MAP = {
@@ -69,11 +83,15 @@ SITE_MAP = {
 }
 
 
-def fetch_page(query: str, limit: int, cursor: Optional[str]) -> dict:
+def fetch_page(query: str, limit: int, cursor: Optional[str],
+               collection: Optional[int] = None) -> dict:
     """Fetch one page of search results, following the API's cursor."""
     import urllib.request
 
-    url = cursor or f"{API}?{urlencode({'query': query, 'limit': limit})}"
+    params = {"query": query, "limit": limit}
+    if collection is not None:
+        params["collections"] = collection
+    url = cursor or f"{API}?{urlencode(params)}"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=90) as resp:
         import json
@@ -81,14 +99,19 @@ def fetch_page(query: str, limit: int, cursor: Optional[str]) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def collect(label: str, want: int, page_size: int = 100) -> List[dict]:
+def collect(label: str, want: int, page_size: int = 100,
+            image_type: str = IMAGE_TYPE,
+            collection: Optional[int] = None,
+            source_name: str = SOURCE_NAME) -> List[dict]:
     """Page through the API collecting up to ``want`` records for one class."""
-    query = f"{CLASS_QUERIES[label]} AND {IMAGE_TYPE}"
+    overrides = CLASS_QUERY_OVERRIDES.get(source_name, {})
+    query = f"{overrides.get(label, CLASS_QUERIES[label])} AND {image_type}"
     out: List[dict] = []
     cursor = None
     while len(out) < want:
         try:
-            page = fetch_page(query, min(page_size, want - len(out)), cursor)
+            page = fetch_page(query, min(page_size, want - len(out)), cursor,
+                              collection)
         except Exception as exc:  # noqa: BLE001
             logger.warning("  %s: page fetch failed (%s); stopping early.", label, exc)
             break
@@ -127,16 +150,22 @@ def download_one(record: dict, dest_dir: Path) -> Optional[Path]:
         return None
 
 
-def prepare(cfg: Config, per_class: int, workers: int, merge: bool = True) -> Optional[Path]:
-    """Download the subset and write ``data/processed/isic.csv``."""
-    raw_root = ensure_dir(cfg.path("paths.raw_dir") / SOURCE_NAME)
+def prepare(cfg: Config, per_class: int, workers: int, merge: bool = True,
+            image_type: str = IMAGE_TYPE, collection: Optional[int] = None,
+            source_name: str = SOURCE_NAME) -> Optional[Path]:
+    """Download the subset and write ``data/processed/<source_name>.csv``."""
+    raw_root = ensure_dir(cfg.path("paths.raw_dir") / source_name)
     risk_map = {k.upper(): v for k, v in dict(cfg.get("labels.pad_ufes_map")).items()}
     site_vocab = list(cfg.get("metadata.site_vocab"))
 
     logger.info("Querying the ISIC Archive for clinical close-up images ...")
     records: Dict[str, List[dict]] = {}
     for label in CLASS_QUERIES:
-        records[label] = collect(label, per_class)
+        records[label] = collect(label, per_class, image_type=image_type,
+                                 collection=collection, source_name=source_name)
+        if not records[label]:
+            logger.warning("  %s: query returned nothing -- the taxonomy for this "
+                           "collection may differ; check CLASS_QUERY_OVERRIDES.", label)
 
     rows = []
     started = time.time()
@@ -163,12 +192,12 @@ def prepare(cfg: Config, per_class: int, workers: int, merge: bool = True) -> Op
                     "site": SITE_MAP.get(site_raw, "unknown") if site_raw else "unknown",
                     "diagnosis": label,
                     "risk_label": risk_map.get(label, "Moderate"),
-                    "source": SOURCE_NAME,
+                    "source": source_name,
                     # The archive groups repeat shots of one lesion under
                     # lesion_id; fall back to the image id so every row has a
                     # group key for the leakage-free split.
                     "lesion_id": str(clinical.get("lesion_id")
-                                     or rec.get("isic_id") or f"{SOURCE_NAME}_{done}"),
+                                     or rec.get("isic_id") or f"{source_name}_{done}"),
                 })
         logger.info("  %-4s downloaded %d/%d (%.0fs elapsed)",
                     label, len([r for r in rows if r["diagnosis"] == label]),
@@ -179,15 +208,15 @@ def prepare(cfg: Config, per_class: int, workers: int, merge: bool = True) -> Op
         return None
 
     df = pd.DataFrame(rows, columns=UNIFIED_COLUMNS)
-    df["lesion_id"] = SOURCE_NAME + "_" + df["lesion_id"].astype(str)
+    df["lesion_id"] = source_name + "_" + df["lesion_id"].astype(str)
     df = subsample(df, None, None, int(cfg.get("project.seed", 42)))
 
     logger.info("--- ISIC: %d images ---", len(df))
     for dx, count in df["diagnosis"].value_counts().items():
         logger.info("  %-4s %5d", dx, count)
-    summarise(df, "ISIC (real clinical photographs)")
+    summarise(df, f"{source_name} ({image_type})")
 
-    out_path = cfg.path("paths.processed_dir") / f"{SOURCE_NAME}.csv"
+    out_path = cfg.path("paths.processed_dir") / f"{source_name}.csv"
     write_unified_csv(df, out_path)
     if merge:
         rebuild_unified(cfg)
@@ -202,10 +231,18 @@ def main() -> int:
                         help="Max images per diagnosis class (default 400).")
     parser.add_argument("--workers", type=int, default=12)
     parser.add_argument("--no-merge", action="store_true")
+    parser.add_argument("--image-type", default="clinical: close-up",
+                        help='ISIC image_type, e.g. "dermoscopic".')
+    parser.add_argument("--collection", type=int, default=None,
+                        help="ISIC collection id (HAM10000 is 212).")
+    parser.add_argument("--source-name", default=SOURCE_NAME,
+                        help="Name for the source column and output CSV.")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
-    result = prepare(cfg, args.per_class, args.workers, merge=not args.no_merge)
+    result = prepare(cfg, args.per_class, args.workers, merge=not args.no_merge,
+                     image_type=f'image_type:"{args.image_type}"',
+                     collection=args.collection, source_name=args.source_name)
     return 0 if result is not None else 1
 
 
