@@ -1,0 +1,27 @@
+{
+  "n": 465,
+  "pooling": {
+    "browser": "CLS token",
+    "python": "CLS",
+    "python_vs_cls_max_diff": 0.0,
+    "python_vs_mean_max_diff": 14.448315620422363,
+    "consistent": true
+  },
+  "results": {
+    "int8 (browser)": {
+      "top1": 0.6731182795698925,
+      "top3": 0.9655913978494624,
+      "mel_recall": 0.7466666666666667,
+      "mel_shown_low": 0.24
+    },
+    "fp32": {
+      "top1": 0.6731182795698925,
+      "top3": 0.9741935483870968,
+      "mel_recall": 0.7466666666666667,
+      "mel_shown_low": 0.24
+    }
+  },
+  "int8_vs_fp32_class_agreement": "438/465",
+  "int8_vs_fp32_max_prob_drift": 0.5211614966392517,
+  "int8_minus_fp32_top1": 0.0
+}

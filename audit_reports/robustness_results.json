@@ -1,0 +1,95 @@
+{
+  "n_test_images": 465,
+  "caveat": "Synthetic perturbations of the held-out split. A drop shows brittleness; holding up is not clinical validation.",
+  "baseline_accuracy": 0.6731182795698925,
+  "perturbations": {
+    "none (baseline)": {
+      "accuracy": 0.6731182795698925,
+      "macro_recall": 0.6634851049691809,
+      "melanoma_recall": 0.7466666666666667,
+      "melanomas_shown_low_risk": 0.24,
+      "mean_confidence": 0.6732301115989685
+    },
+    "rotate 10 deg": {
+      "accuracy": 0.6258064516129033,
+      "macro_recall": 0.6433738769256524,
+      "melanoma_recall": 0.5066666666666667,
+      "melanomas_shown_low_risk": 0.4533333333333333,
+      "mean_confidence": 0.6444158554077148
+    },
+    "rotate 90 deg": {
+      "accuracy": 0.6709677419354839,
+      "macro_recall": 0.660955375568194,
+      "melanoma_recall": 0.7466666666666667,
+      "melanomas_shown_low_risk": 0.24,
+      "mean_confidence": 0.6706419587135315
+    },
+    "horizontal flip": {
+      "accuracy": 0.6860215053763441,
+      "macro_recall": 0.6750242780735963,
+      "melanoma_recall": 0.76,
+      "melanomas_shown_low_risk": 0.22666666666666666,
+      "mean_confidence": 0.6726393103599548
+    },
+    "gaussian blur r=2": {
+      "accuracy": 0.4043010752688172,
+      "macro_recall": 0.39667013907747384,
+      "melanoma_recall": 0.3466666666666667,
+      "melanomas_shown_low_risk": 0.6533333333333333,
+      "mean_confidence": 0.6571040153503418
+    },
+    "brightness x1.4": {
+      "accuracy": 0.6344086021505376,
+      "macro_recall": 0.6214893048473581,
+      "melanoma_recall": 0.6266666666666667,
+      "melanomas_shown_low_risk": 0.2,
+      "mean_confidence": 0.6508958339691162
+    },
+    "brightness x0.6": {
+      "accuracy": 0.6537634408602151,
+      "macro_recall": 0.6602475694201978,
+      "melanoma_recall": 0.72,
+      "melanomas_shown_low_risk": 0.26666666666666666,
+      "mean_confidence": 0.6456279158592224
+    },
+    "contrast x0.5": {
+      "accuracy": 0.6344086021505376,
+      "macro_recall": 0.6424201130478631,
+      "melanoma_recall": 0.56,
+      "melanomas_shown_low_risk": 0.4266666666666667,
+      "mean_confidence": 0.6243434548377991
+    },
+    "saturation x0.0 (grey)": {
+      "accuracy": 0.43010752688172044,
+      "macro_recall": 0.40279912984686633,
+      "melanoma_recall": 0.6933333333333334,
+      "melanomas_shown_low_risk": 0.29333333333333333,
+      "mean_confidence": 0.6142242550849915
+    },
+    "downscale to 64px": {
+      "accuracy": 0.4881720430107527,
+      "macro_recall": 0.47944458414419927,
+      "melanoma_recall": 0.52,
+      "melanomas_shown_low_risk": 0.48,
+      "mean_confidence": 0.6473719477653503
+    },
+    "jpeg quality 20": {
+      "accuracy": 0.45806451612903226,
+      "macro_recall": 0.4737682358142834,
+      "melanoma_recall": 0.38666666666666666,
+      "melanomas_shown_low_risk": 0.6,
+      "mean_confidence": 0.6637688875198364
+    }
+  },
+  "performance": {
+    "cuda_available": true,
+    "torch_version": "2.12.1+cu126",
+    "model_device": "cuda:0",
+    "gpu_name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "vram_total_gb": 6.44,
+    "single_image_ms": 9.48,
+    "batch32_ms": 214.63,
+    "throughput_img_per_s": 149.1,
+    "peak_vram_mb": 598.7
+  }
+}

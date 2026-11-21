@@ -161,6 +161,16 @@ def diagnosis_description(cfg: Config, code: str) -> str:
     return str(dict(cfg.get("labels.diagnosis_descriptions", {})).get(code, ""))
 
 
+def diagnosis_category(cfg: Config, code: str) -> str:
+    """Return what kind of lesion this is: Benign, Pre-cancerous or Skin cancer.
+
+    Separate from the risk tier. The tier says what the reader should do; this
+    says what the lesion is. "Basal cell carcinoma" and "High risk" together
+    still never use the word cancer.
+    """
+    return str(dict(cfg.get("labels.diagnosis_categories", {})).get(code, ""))
+
+
 def diagnosis_to_risk(cfg: Config) -> Dict[str, str]:
     """Map each diagnosis code to its risk tier.
 

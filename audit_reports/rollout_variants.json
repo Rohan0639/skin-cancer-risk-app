@@ -1,0 +1,62 @@
+{
+  "n_images": 200,
+  "random_pointing_baseline_equals_mean_lesion_area": true,
+  "variants": {
+    "deployed: max-fuse, block 6": {
+      "pointing_game": 0.13,
+      "iou": 0.25005057015616167,
+      "dice": 0.3779540437162211,
+      "focus_ratio": 1.2755473134001434,
+      "frac_above_chance": 0.475
+    },
+    "mean-fuse, block 6": {
+      "pointing_game": 0.09,
+      "iou": 0.18950940518033785,
+      "dice": 0.29467523345021546,
+      "focus_ratio": 1.1133135512787093,
+      "frac_above_chance": 0.36
+    },
+    "mean-fuse, block 0 (all blocks)": {
+      "pointing_game": 0.055,
+      "iou": 0.14587921773522125,
+      "dice": 0.2215315359198744,
+      "focus_ratio": 0.9988120289572809,
+      "frac_above_chance": 0.29
+    },
+    "mean-fuse, block 3": {
+      "pointing_game": 0.305,
+      "iou": 0.3060305607226069,
+      "dice": 0.43965592257786634,
+      "focus_ratio": 1.2110054245193103,
+      "frac_above_chance": 0.595
+    },
+    "mean-fuse, block 9": {
+      "pointing_game": 0.1,
+      "iou": 0.16587442730967802,
+      "dice": 0.25292587747689665,
+      "focus_ratio": 0.888640543373701,
+      "frac_above_chance": 0.195
+    },
+    "max-fuse b6 + clip p98": {
+      "pointing_game": 0.15,
+      "iou": 0.2559170985261072,
+      "dice": 0.38492587842023573,
+      "focus_ratio": 1.2688579684321653,
+      "frac_above_chance": 0.505
+    },
+    "max-fuse b6 + 3x3 median": {
+      "pointing_game": 0.23,
+      "iou": 0.2860123867454218,
+      "dice": 0.40824536589376076,
+      "focus_ratio": 1.2089916924596944,
+      "frac_above_chance": 0.51
+    },
+    "mean-fuse b6 + 3x3 median": {
+      "pointing_game": 0.195,
+      "iou": 0.27233189865524143,
+      "dice": 0.38837746652074406,
+      "focus_ratio": 1.1469971764914575,
+      "frac_above_chance": 0.47
+    }
+  }
+}

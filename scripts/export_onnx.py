@@ -44,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import load_config  # noqa: E402
 from src.dataset import (  # noqa: E402
     diagnosis_classes,
+    diagnosis_category,
     diagnosis_description,
     diagnosis_name,
     metadata_dim,
@@ -55,11 +56,17 @@ from src.utils import get_logger  # noqa: E402
 logger = get_logger("export_onnx")
 
 #: First transformer block included in the rollout product. Chosen by sweeping
-#: head fusion, pruning and depth against measured focus ratio on held-out
-#: images (see scripts/tune_rollout.py): max-fusion from block 6 lands on the
-#: lesion 1.89x better than chance at the median and beats chance on 84% of
-#: images, against 1.10 / 62% for mean-fusion over all blocks.
-ROLLOUT_START_LAYER = 6
+#: head fusion and depth, selected against EXPERT SEGMENTATION MASKS using
+#: Pointing Game, IoU and Dice together (scripts/audit_rollout_variants.py).
+#:
+#: The previous value of 6, with max-fusion, was chosen on focus ratio alone.
+#: Focus ratio measures how much heat falls inside the lesion once lesion area
+#: is divided out, so it is blind to where the single hottest pixel sits -- and
+#: that configuration scored the HIGHEST focus ratio (1.276) while scoring
+#: almost the LOWEST Pointing Game (0.130), below the 0.287 random baseline.
+#: Picking an attribution method by a metric that cannot see its failure mode
+#: is how a heatmap ends up worse than chance at pointing to the lesion.
+ROLLOUT_START_LAYER = 3
 
 
 def _attention_matrix(attn: nn.Module, x: torch.Tensor,
@@ -102,9 +109,17 @@ class TrunkWrapper(nn.Module):
 
     Rollout replaces the earlier "run the head on each patch token" saliency,
     which measured at a focus ratio of 1.03 — statistically indistinguishable
-    from a uniform heatmap. On the same test images rollout scores 1.38 median
-    and beats chance on 70% of them, and unlike Grad-CAM it needs no backward
-    pass, so it runs in ONNX Runtime Web.
+    from a uniform heatmap. Unlike Grad-CAM it needs no backward pass, so it
+    runs in ONNX Runtime Web.
+
+    Scored against expert HAM10000 segmentation masks, the current
+    configuration (mean fusion from block 3) reaches Pointing Game 0.305
+    against a 0.287 random baseline, IoU 0.306 and Dice 0.440. That is a modest
+    margin over chance, not a solved problem: see audit_reports/.
+
+    Attention is not causal attribution. A high rollout value says the CLS
+    token's attention reaches that patch, not that the patch drove the
+    prediction.
 
     The block forward is left untouched; attention is recomputed as a side
     branch, so the tokens -- and therefore every prediction -- are bit-identical
@@ -133,12 +148,18 @@ class TrunkWrapper(nn.Module):
         for i, blk in enumerate(vit.blocks):
             if i >= ROLLOUT_START_LAYER:
                 a = _attention_matrix(blk.attn, blk.norm1(x), rel_pos_bias)
-                # Max over heads, not mean: a few heads attend sharply to the
-                # lesion and the rest are diffuse, so averaging dilutes the
-                # signal. Starting at block 6 skips the early blocks, which
-                # attend almost uniformly and only add a background floor that
-                # compounds through the matrix product.
-                a = a.max(dim=1).values + eye
+                # Mean over heads, not max. Max was chosen on the theory that a
+                # few heads attend sharply to the lesion while the rest are
+                # diffuse -- but scored against expert masks it put the hottest
+                # pixel on the lesion only 12.7% of the time, against a 28.7%
+                # random baseline. Taking the maximum propagates whichever head
+                # spikes on a ViT artifact token (Darcet et al. 2023): isolated
+                # background patches the transformer uses as scratch space,
+                # which carry huge attention and no local signal. Mean averages
+                # them out; block 3 keeps the earlier spatial blocks that max
+                # was skipping. Measured: Pointing 0.127 -> 0.305, IoU 0.246 ->
+                # 0.306, Dice 0.374 -> 0.440.
+                a = a.mean(dim=1) + eye
                 a = a / a.sum(dim=-1, keepdim=True)
                 roll = a @ roll
             x = blk(x, rel_pos_bias=rel_pos_bias)   # unchanged original path
@@ -184,6 +205,7 @@ def dump_head(head: nn.Module, cfg) -> dict:
         "classes": codes,
         "names": {c: diagnosis_name(cfg, c) for c in codes},
         "descriptions": {c: diagnosis_description(cfg, c) for c in codes},
+        "categories": {c: diagnosis_category(cfg, c) for c in codes},
         "risk_of": {c: risk_for(cfg, c) for c in codes},
         "risk_classes": list(cfg.get("labels.risk_classes")),
         "recommendations": dict(cfg.get("report.recommendations")),

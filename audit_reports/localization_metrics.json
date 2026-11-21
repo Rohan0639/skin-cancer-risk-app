@@ -1,0 +1,28 @@
+{
+  "note": "Masks are dermoscopic HAM10000 (expert annotations). The attention rollout comes from the FROZEN PanDerm trunk, which is identical whatever head sits on it, so this measures the backbone's localization. It is NOT a measure of the clinical classifier's accuracy, and these images are not the clinical test split.",
+  "n_images": 300,
+  "method": "attention rollout, max-fused over heads from block 6",
+  "attention_rollout": {
+    "pointing_game_accuracy": 0.12666666666666668,
+    "mean_iou": 0.24599114781812698,
+    "mean_dice": 0.37371741728734,
+    "mean_focus_ratio": 1.2451793692881983,
+    "median_focus_ratio": 0.9776021551236054,
+    "frac_above_chance_focus": 0.4633333333333333
+  },
+  "random_baseline": {
+    "pointing_game_accuracy": 0.2866666666666667,
+    "mean_iou": 0.20320597247561878,
+    "mean_dice": 0.3083886625285043,
+    "mean_focus_ratio": 1.0004745288367338
+  },
+  "mean_lesion_area_fraction": 0.3083130560980903,
+  "per_class_focus_ratio": {
+    "ACK": 0.893,
+    "BCC": 1.352,
+    "MEL": 1.33,
+    "NEV": 1.328,
+    "SCC": 0.947,
+    "SEK": 1.149
+  }
+}

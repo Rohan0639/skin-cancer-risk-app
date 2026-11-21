@@ -6,8 +6,8 @@ import { loadModel, isLoaded } from './lib/model.js';
 // Model files carry a content hash: they are served immutable, so without one
 // a browser keeps the previous model forever and silently pairs a stale head
 // with a new graph.
-const MODEL_URL = './model/panderm_vit_int8.onnx?v=b8a38550';
-const HEAD_URL = './model/head.json?v=63f065b4';
+const MODEL_URL = './model/panderm_vit_int8.onnx?v=fc92e506';
+const HEAD_URL = './model/head.json?v=c1c86566';
 
 const $ = (id) => document.getElementById(id);
 const state = { img: null, stream: null };
@@ -170,14 +170,58 @@ function render(result) {
   const escalated = report.level !== report.modelLevel;
   const uncertain = report.diagnosisConfidence < 0.5 || escalated;
 
+  // When the pixels cannot support a diagnosis, give none. The model stays
+  // confident on an unusable photo -- under heavy blur its accuracy falls to
+  // 40% while its confidence barely moves -- so the abstention threshold never
+  // fires and only this gate stands between the reader and a confident guess.
+  if (report.quality && report.quality.usable === false) {
+    card.innerHTML = `
+      <div class="retake">
+        <div class="vk">Photo cannot be used</div>
+        <h2>Please take another photo</h2>
+        <p class="rr">${report.quality.blockReason}</p>
+        <ul class="tips">
+          <li>Fill most of the frame with the lesion, against plain skin.</li>
+          <li>Use bright, even light — daylight is best, and avoid direct flash.</li>
+          <li>Hold steady and tap the screen to focus before taking the shot.</li>
+          <li>Send the photo at full size; do not crop or zoom it down.</li>
+        </ul>
+        <p class="rd"><b>This is not a result.</b> We have deliberately not guessed
+          at a diagnosis, because on a photo like this the model is just as
+          confident when it is wrong. If you are worried about this lesion — or
+          it is changing, bleeding, itching or not healing — see a doctor or
+          dermatologist, whatever a retaken photo goes on to say.</p>
+      </div>
+      <div class="row" style="margin-top:1rem">
+        <button id="again">Take another photo</button>
+      </div>`;
+    $('again').addEventListener('click', () => {
+      card.hidden = true;
+      $('inputCard').hidden = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    $('inputCard').hidden = true;
+    card.hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+
   const poor = report.quality && !report.quality.passed
     ? `<p class="warn">Photo quality is poor — ${report.quality.reason}
        Retake it for a more reliable result.</p>` : '';
 
+  // What kind of lesion it is, as its own labelled line. "Basal cell carcinoma"
+  // and "High risk" together can be read without ever registering the word
+  // cancer; this says it plainly.
+  const catClass = (c) => (c === 'Skin cancer' ? 'cat-high'
+    : c === 'Pre-cancerous' ? 'cat-mod' : 'cat-low');
+
   let head;
   if (uncertain) {
     const alts = report.ranked.slice(0, 3)
-      .map((r) => `<li><span>${r.name}</span><b>${Math.round(r.p * 100)}%</b></li>`)
+      .map((r) => `<li><span>${r.name}${r.category
+        ? ` <em class="cat ${catClass(r.category)}">${r.category}</em>` : ''}</span>`
+        + `<b>${Math.round(r.p * 100)}%</b></li>`)
       .join('');
     head = `
       <div class="verdict ${tier}">
@@ -193,6 +237,9 @@ function render(result) {
       <div class="verdict ${tier}">
         <div class="vk">Most likely</div>
         <div class="vn">${report.diagnosisName}</div>
+        ${report.diagnosisCategory
+          ? `<div class="vc"><em class="cat ${catClass(report.diagnosisCategory)}">`
+            + `${report.diagnosisCategory}</em></div>` : ''}
         <p class="vd">${report.diagnosisDescription}</p>
         <p class="vr">${report.level} risk — ${report.recommendation}</p>
       </div>`;

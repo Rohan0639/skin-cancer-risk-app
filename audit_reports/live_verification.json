@@ -1,0 +1,73 @@
+{
+  "original": {
+    "kicker": "NOT CONFIDENT",
+    "headline": "High risk",
+    "advice": "See a dermatologist promptly. Do not wait for it to change f",
+    "why_rows": 5,
+    "canvases": 2,
+    "heatmap": {
+      "w": 256,
+      "h": 192,
+      "maxAlpha": 255,
+      "meanAlpha": 255
+    }
+  },
+  "upscaled 1200x900": {
+    "kicker": "NOT CONFIDENT",
+    "headline": "High risk",
+    "advice": "See a dermatologist promptly. Do not wait for it to change f",
+    "why_rows": 5,
+    "canvases": 2,
+    "heatmap": {
+      "w": 320,
+      "h": 240,
+      "maxAlpha": 255,
+      "meanAlpha": 255
+    }
+  },
+  "tall 3:4 480x640": {
+    "kicker": "NOT CONFIDENT",
+    "headline": "High risk",
+    "advice": "See a dermatologist promptly. Do not wait for it to change f",
+    "why_rows": 5,
+    "canvases": 2,
+    "heatmap": {
+      "w": 320,
+      "h": 427,
+      "maxAlpha": 255,
+      "meanAlpha": 255
+    }
+  },
+  "dim -40%": {
+    "kicker": "NOT CONFIDENT",
+    "headline": "High risk",
+    "advice": "See a dermatologist promptly. Do not wait for it to change f",
+    "why_rows": 5,
+    "canvases": 2,
+    "heatmap": {
+      "w": 256,
+      "h": 192,
+      "maxAlpha": 255,
+      "meanAlpha": 255
+    }
+  },
+  "camera capture": {
+    "kicker": "NOT CONFIDENT",
+    "headline": "Moderate risk",
+    "advice": "Book a non-urgent appointment with a doctor or dermatologist",
+    "why_rows": 5,
+    "canvases": 2,
+    "heatmap": {
+      "w": 320,
+      "h": 180,
+      "maxAlpha": 255,
+      "meanAlpha": 255
+    }
+  },
+  "_console_errors": [],
+  "_model_requests": [
+    "head.json?v=63f065b4",
+    "model.js",
+    "panderm_vit_int8.onnx?v=fc92e506"
+  ]
+}

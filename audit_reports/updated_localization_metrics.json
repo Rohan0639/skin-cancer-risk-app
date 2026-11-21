@@ -1,0 +1,106 @@
+{
+  "validation_design": "400 dermoscopic images with expert masks, disjoint from the 300 images used to select the configuration.",
+  "n_images": 400,
+  "selection_set_excluded": 300,
+  "mean_lesion_area_fraction": 0.32050730387369797,
+  "old_config": {
+    "start_layer": 6,
+    "fusion": "max",
+    "pointing_game": 0.1275,
+    "iou": 0.25742555270817846,
+    "dice": 0.3867107914470323,
+    "focus_ratio": 1.2359094807468782,
+    "frac_above_chance_focus": 0.4775
+  },
+  "new_config": {
+    "start_layer": 3,
+    "fusion": "mean",
+    "pointing_game": 0.2725,
+    "iou": 0.32495213817258883,
+    "dice": 0.4623934867501285,
+    "focus_ratio": 1.1981361373754036,
+    "frac_above_chance_focus": 0.5775
+  },
+  "random_baseline": {
+    "pointing_game": 0.2975,
+    "iou": 0.21449928415954886,
+    "dice": 0.3206947010014911,
+    "focus_ratio": 1.0,
+    "frac_above_chance_focus": null
+  },
+  "paired_bootstrap_new_minus_old": {
+    "pointing_game": {
+      "mean_delta": 0.145,
+      "ci95_low": 0.0975,
+      "ci95_high": 0.1925,
+      "frac_bootstraps_favouring_new": 1.0
+    },
+    "iou": {
+      "mean_delta": 0.06752658546441037,
+      "ci95_low": 0.05890735019902923,
+      "ci95_high": 0.076216042593616,
+      "frac_bootstraps_favouring_new": 1.0
+    },
+    "dice": {
+      "mean_delta": 0.07568269530309618,
+      "ci95_low": 0.06657397223968653,
+      "ci95_high": 0.08488113587861035,
+      "frac_bootstraps_favouring_new": 1.0
+    }
+  },
+  "caveats": [
+    "Masks are dermoscopic HAM10000; the deployed classifier trains on clinical photographs. The rollout comes from the frozen trunk, which is shared, so this measures backbone attention, not classifier accuracy.",
+    "Attention rollout is not causal attribution. High attention does not establish that a region drove the prediction.",
+    "Pointing Game's random baseline equals mean lesion area, so it is only meaningful read against that number."
+  ],
+  "display_normalisation": {
+    "note": "web/lib/model.js normalises the rollout before drawing it. The old p99 upper clip was added to tame the artifact spikes of the max-fusion rollout; with those gone it only flattens the top into a tie and costs pointing accuracy. Measured on 150 held-out masked images.",
+    "n_images": 150,
+    "variants": {
+      "p50-p99, gamma 1.2 (previous)": {
+        "pointing": 0.22,
+        "iou": 0.33,
+        "dice": 0.465,
+        "focus": 2.067
+      },
+      "p50-p100, gamma 1.2": {
+        "pointing": 0.267,
+        "iou": 0.333,
+        "dice": 0.468,
+        "focus": 2.042
+      },
+      "p50-p99.9, gamma 1.2": {
+        "pointing": 0.267,
+        "iou": 0.333,
+        "dice": 0.467,
+        "focus": 2.046
+      },
+      "p50-p100, gamma 1.0 (adopted)": {
+        "pointing": 0.273,
+        "iou": 0.332,
+        "dice": 0.467,
+        "focus": 1.953
+      },
+      "p30-p100, gamma 1.0": {
+        "pointing": 0.273,
+        "iou": 0.33,
+        "dice": 0.467,
+        "focus": 1.783
+      }
+    },
+    "adopted": "p50 floor, true max ceiling, gamma 1.0",
+    "focus_ratio_warning": "The p50 floor inflates focus ratio from ~1.22 to ~2.07 by zeroing the bottom half of the map. Any focus-ratio figure measured after display normalisation is inflated; this is a second way that metric misled."
+  },
+  "onnx_parity": {
+    "comparison": "old deployed int8 vs new int8, 40 held-out test images",
+    "tokens_max_abs_diff": 0.0,
+    "pooled_embedding_max_abs_diff": 0.0,
+    "rollout_max_abs_diff_normalised": 0.8234,
+    "verdict": "classification path bit-identical; only the rollout branch changed",
+    "verify_web_model": {
+      "fp32": "30/30 agree, max prob drift 0.00000",
+      "int8": "29/30 agree, max prob drift 0.10798",
+      "note": "identical to the pre-fix baseline"
+    }
+  }
+}

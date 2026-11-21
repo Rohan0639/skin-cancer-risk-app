@@ -1,0 +1,153 @@
+image_id,true,predicted,confidence,true_prob,true_risk,predicted_risk,abstained,category,true_in_top3
+ISIC_8556402,SCC,BCC,0.8668,0.0682,High,High,False,same risk tier (advice still correct),True
+ISIC_6278880,ACK,SEK,0.8391,0.015,Moderate,Low,False,downgraded to Low,False
+ISIC_4448691,NEV,SEK,0.8383,0.0547,Low,Low,False,same risk tier (advice still correct),True
+ISIC_1973514,SCC,BCC,0.8286,0.1003,High,High,False,same risk tier (advice still correct),True
+ISIC_4871000,MEL,SEK,0.7906,0.0856,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_9800865,SEK,NEV,0.7896,0.0395,Low,Low,False,same risk tier (advice still correct),False
+ISIC_4803438,ACK,SEK,0.7816,0.1043,Moderate,Low,False,downgraded to Low,True
+ISIC_4879615,NEV,MEL,0.7761,0.1079,Low,High,False,upgraded (errs safe),True
+ISIC_2749853,NEV,SEK,0.771,0.0702,Low,Low,False,same risk tier (advice still correct),True
+ISIC_8937601,MEL,NEV,0.7665,0.1464,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_5794353,ACK,SEK,0.7491,0.0717,Moderate,Low,False,downgraded to Low,True
+ISIC_2280654,MEL,NEV,0.7439,0.151,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_8397636,NEV,MEL,0.7412,0.1026,Low,High,False,upgraded (errs safe),True
+ISIC_9651478,NEV,SEK,0.7391,0.0725,Low,Low,False,same risk tier (advice still correct),True
+ISIC_9567232,NEV,BCC,0.7367,0.0362,Low,High,False,upgraded (errs safe),False
+ISIC_9417678,ACK,SCC,0.7325,0.1517,Moderate,High,False,upgraded (errs safe),True
+ISIC_1054971,SEK,MEL,0.7313,0.0695,Low,High,False,upgraded (errs safe),True
+ISIC_0100911,BCC,SCC,0.7301,0.0728,High,High,False,same risk tier (advice still correct),True
+ISIC_1219741,NEV,MEL,0.7279,0.1176,Low,High,False,upgraded (errs safe),True
+ISIC_6492984,SCC,BCC,0.727,0.1361,High,High,False,same risk tier (advice still correct),True
+ISIC_5027601,SCC,BCC,0.7256,0.1713,High,High,False,same risk tier (advice still correct),True
+ISIC_8367407,ACK,BCC,0.7245,0.0587,Moderate,High,False,upgraded (errs safe),True
+ISIC_1359248,SEK,NEV,0.7245,0.1684,Low,Low,False,same risk tier (advice still correct),True
+ISIC_7671115,ACK,BCC,0.7225,0.0479,Moderate,High,False,upgraded (errs safe),True
+ISIC_8954558,SCC,BCC,0.7119,0.1726,High,High,False,same risk tier (advice still correct),True
+ISIC_8588817,SEK,NEV,0.7116,0.0636,Low,Low,False,same risk tier (advice still correct),True
+ISIC_6010288,SEK,SCC,0.6967,0.0166,Low,High,False,upgraded (errs safe),False
+ISIC_9368599,NEV,MEL,0.6925,0.1148,Low,High,False,upgraded (errs safe),True
+ISIC_7967917,SEK,NEV,0.6911,0.1632,Low,Low,False,same risk tier (advice still correct),True
+ISIC_5209451,SCC,SEK,0.6911,0.06,High,Low,False,CRITICAL: dangerous downgrade,False
+ISIC_5403927,SEK,MEL,0.6875,0.1266,Low,High,False,upgraded (errs safe),True
+ISIC_6435608,SEK,ACK,0.6807,0.1766,Low,Moderate,False,upgraded (errs safe),True
+ISIC_2921664,ACK,BCC,0.6803,0.0667,Moderate,High,False,upgraded (errs safe),True
+ISIC_2161430,NEV,SEK,0.6793,0.1902,Low,Low,False,same risk tier (advice still correct),True
+ISIC_5407024,BCC,SCC,0.6776,0.1186,High,High,False,same risk tier (advice still correct),True
+ISIC_1904660,SEK,NEV,0.675,0.0837,Low,Low,False,same risk tier (advice still correct),True
+ISIC_8740093,SEK,MEL,0.6745,0.2198,Low,High,False,upgraded (errs safe),True
+ISIC_5373976,SEK,BCC,0.6713,0.0316,Low,High,False,upgraded (errs safe),False
+ISIC_0111385,ACK,BCC,0.6699,0.0639,Moderate,High,False,upgraded (errs safe),True
+ISIC_0155115,NEV,MEL,0.6624,0.2028,Low,High,False,upgraded (errs safe),True
+ISIC_5675678,SEK,ACK,0.6609,0.2047,Low,Moderate,False,upgraded (errs safe),True
+ISIC_7743533,SCC,BCC,0.6602,0.1976,High,High,False,same risk tier (advice still correct),True
+ISIC_9420223,ACK,SCC,0.6579,0.1108,Moderate,High,False,upgraded (errs safe),True
+ISIC_0024234,BCC,SCC,0.6563,0.1946,High,High,False,same risk tier (advice still correct),True
+ISIC_0534194,SEK,ACK,0.6534,0.1948,Low,Moderate,False,upgraded (errs safe),True
+ISIC_8876237,BCC,SCC,0.6478,0.2359,High,High,False,same risk tier (advice still correct),True
+ISIC_0024233,BCC,SCC,0.6476,0.2975,High,High,False,same risk tier (advice still correct),True
+ISIC_2944503,NEV,MEL,0.6453,0.1979,Low,High,False,upgraded (errs safe),True
+ISIC_0267616,SEK,MEL,0.6434,0.2068,Low,High,False,upgraded (errs safe),True
+ISIC_5440216,MEL,NEV,0.6395,0.2093,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_6831182,SEK,MEL,0.6373,0.1896,Low,High,False,upgraded (errs safe),True
+ISIC_2494959,BCC,SCC,0.6298,0.2153,High,High,False,same risk tier (advice still correct),True
+ISIC_3263650,SCC,BCC,0.6266,0.244,High,High,False,same risk tier (advice still correct),True
+ISIC_6156407,SEK,SCC,0.6256,0.0194,Low,High,False,upgraded (errs safe),False
+ISIC_4554458,ACK,SCC,0.6132,0.0963,Moderate,High,False,upgraded (errs safe),True
+ISIC_1944843,ACK,SCC,0.6127,0.1738,Moderate,High,False,upgraded (errs safe),True
+ISIC_7861305,BCC,SCC,0.6096,0.2749,High,High,False,same risk tier (advice still correct),True
+ISIC_9770798,MEL,NEV,0.6041,0.2247,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_1212382,BCC,SCC,0.6019,0.177,High,High,False,same risk tier (advice still correct),True
+ISIC_9360522,ACK,BCC,0.6014,0.0606,Moderate,High,False,upgraded (errs safe),True
+ISIC_5177277,SCC,BCC,0.5992,0.2715,High,High,False,same risk tier (advice still correct),True
+ISIC_9209368,MEL,NEV,0.5928,0.2759,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_8520875,MEL,NEV,0.5903,0.2038,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_1732067,BCC,SCC,0.582,0.1065,High,High,False,same risk tier (advice still correct),True
+ISIC_5137477,NEV,MEL,0.5816,0.2748,Low,High,False,upgraded (errs safe),True
+ISIC_4093423,SEK,MEL,0.5763,0.2072,Low,High,False,upgraded (errs safe),True
+ISIC_3397320,SEK,MEL,0.5753,0.2342,Low,High,False,upgraded (errs safe),True
+ISIC_6601919,MEL,SEK,0.5727,0.1394,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_1378542,BCC,SCC,0.571,0.2182,High,High,False,same risk tier (advice still correct),True
+ISIC_0024267,BCC,SCC,0.5705,0.342,High,High,False,same risk tier (advice still correct),True
+ISIC_9794557,ACK,SCC,0.5675,0.2896,Moderate,High,False,upgraded (errs safe),True
+ISIC_0813471,BCC,MEL,0.5659,0.166,High,High,False,same risk tier (advice still correct),True
+ISIC_6966227,NEV,MEL,0.5595,0.287,Low,High,False,upgraded (errs safe),True
+ISIC_6242853,BCC,SCC,0.5564,0.1813,High,High,False,same risk tier (advice still correct),True
+ISIC_6225258,ACK,SCC,0.5528,0.1356,Moderate,High,False,upgraded (errs safe),True
+ISIC_0333650,MEL,NEV,0.5522,0.297,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_7396327,NEV,SEK,0.5503,0.1234,Low,Low,False,same risk tier (advice still correct),True
+ISIC_8935869,SEK,MEL,0.5488,0.1841,Low,High,False,upgraded (errs safe),True
+ISIC_8990576,MEL,NEV,0.5406,0.3352,High,Low,False,CRITICAL: dangerous downgrade,True
+ISIC_1683685,BCC,SCC,0.5379,0.2439,High,High,False,same risk tier (advice still correct),True
+ISIC_8186411,BCC,SCC,0.5291,0.3459,High,High,False,same risk tier (advice still correct),True
+ISIC_2055366,ACK,SCC,0.5287,0.3109,Moderate,High,False,upgraded (errs safe),True
+ISIC_5009385,NEV,MEL,0.5258,0.2263,Low,High,False,upgraded (errs safe),True
+ISIC_3343070,ACK,SCC,0.523,0.1579,Moderate,High,False,upgraded (errs safe),True
+ISIC_6725643,NEV,MEL,0.5165,0.2972,Low,High,False,upgraded (errs safe),True
+ISIC_6971136,NEV,MEL,0.5165,0.1904,Low,High,False,upgraded (errs safe),True
+ISIC_5647228,NEV,SEK,0.5134,0.1936,Low,Low,False,same risk tier (advice still correct),True
+ISIC_1579145,BCC,SCC,0.5128,0.136,High,High,False,same risk tier (advice still correct),True
+ISIC_4678388,ACK,SCC,0.5112,0.3285,Moderate,High,False,upgraded (errs safe),True
+ISIC_6601890,NEV,MEL,0.5089,0.1469,Low,High,False,upgraded (errs safe),True
+ISIC_0024230,BCC,SCC,0.5054,0.3837,High,High,False,same risk tier (advice still correct),True
+ISIC_9060326,NEV,MEL,0.5019,0.3457,Low,High,False,upgraded (errs safe),True
+ISIC_2022726,BCC,SCC,0.5013,0.2642,High,High,False,same risk tier (advice still correct),True
+ISIC_3132177,ACK,SCC,0.5002,0.2811,Moderate,High,False,upgraded (errs safe),True
+ISIC_2549884,SCC,BCC,0.4996,0.422,High,High,True,same risk tier (advice still correct),True
+ISIC_4336621,BCC,SCC,0.496,0.1474,High,High,True,same risk tier (advice still correct),True
+ISIC_3747554,BCC,SCC,0.4943,0.2242,High,High,True,same risk tier (advice still correct),True
+ISIC_1345175,NEV,MEL,0.494,0.3713,Low,High,True,upgraded (errs safe),True
+ISIC_8271995,NEV,MEL,0.4938,0.3515,Low,High,True,upgraded (errs safe),True
+ISIC_8972953,BCC,SCC,0.4936,0.1176,High,High,True,same risk tier (advice still correct),False
+ISIC_1325127,ACK,SEK,0.4925,0.3093,Moderate,Low,True,downgraded to Low,True
+ISIC_8913706,BCC,ACK,0.4898,0.0613,High,Moderate,True,upgraded (errs safe),True
+ISIC_0575623,NEV,MEL,0.4869,0.2318,Low,High,True,upgraded (errs safe),True
+ISIC_1718797,BCC,SCC,0.4852,0.1136,High,High,True,same risk tier (advice still correct),True
+ISIC_8151340,SEK,MEL,0.4822,0.4016,Low,High,True,upgraded (errs safe),True
+ISIC_6180147,BCC,SCC,0.48,0.3334,High,High,True,same risk tier (advice still correct),True
+ISIC_9344767,MEL,NEV,0.4788,0.3098,High,Low,True,CRITICAL: dangerous downgrade,True
+ISIC_3817020,ACK,SEK,0.4754,0.3618,Moderate,Low,True,downgraded to Low,True
+ISIC_8694460,ACK,SCC,0.4752,0.3589,Moderate,High,True,upgraded (errs safe),True
+ISIC_5110194,SEK,MEL,0.4744,0.3212,Low,High,True,upgraded (errs safe),True
+ISIC_2280374,NEV,MEL,0.4727,0.2661,Low,High,True,upgraded (errs safe),True
+ISIC_7313724,SEK,ACK,0.4693,0.2668,Low,Moderate,True,upgraded (errs safe),True
+ISIC_6428066,SCC,BCC,0.4688,0.4154,High,High,True,same risk tier (advice still correct),True
+ISIC_0504075,NEV,SEK,0.4687,0.1064,Low,Low,True,same risk tier (advice still correct),True
+ISIC_1038282,NEV,MEL,0.4687,0.3928,Low,High,True,upgraded (errs safe),True
+ISIC_2677290,SCC,BCC,0.4686,0.4559,High,High,True,same risk tier (advice still correct),True
+ISIC_2335258,SCC,BCC,0.4638,0.3859,High,High,True,same risk tier (advice still correct),True
+ISIC_1636685,MEL,NEV,0.4591,0.3255,High,Low,True,CRITICAL: dangerous downgrade,True
+ISIC_4022680,NEV,MEL,0.4578,0.3703,Low,High,True,upgraded (errs safe),True
+ISIC_8717267,SCC,BCC,0.4575,0.3222,High,High,True,same risk tier (advice still correct),True
+ISIC_6947871,ACK,SCC,0.448,0.4085,Moderate,High,True,upgraded (errs safe),True
+ISIC_2760521,ACK,SCC,0.4452,0.1516,Moderate,High,True,upgraded (errs safe),True
+ISIC_2841441,BCC,SCC,0.4429,0.401,High,High,True,same risk tier (advice still correct),True
+ISIC_2395293,MEL,NEV,0.4393,0.4246,High,Low,True,CRITICAL: dangerous downgrade,True
+ISIC_6784993,ACK,SEK,0.4392,0.3575,Moderate,Low,True,downgraded to Low,True
+ISIC_6472163,NEV,SEK,0.4371,0.4022,Low,Low,True,same risk tier (advice still correct),True
+ISIC_2637970,NEV,SEK,0.4356,0.4045,Low,Low,True,same risk tier (advice still correct),True
+ISIC_6467926,MEL,NEV,0.4349,0.4087,High,Low,True,CRITICAL: dangerous downgrade,True
+ISIC_7515001,ACK,BCC,0.4343,0.2181,Moderate,High,True,upgraded (errs safe),True
+ISIC_2314639,MEL,SEK,0.434,0.4259,High,Low,True,CRITICAL: dangerous downgrade,True
+ISIC_6223571,ACK,SCC,0.4316,0.2027,Moderate,High,True,upgraded (errs safe),True
+ISIC_0460142,ACK,BCC,0.4277,0.1242,Moderate,High,True,upgraded (errs safe),True
+ISIC_6857013,MEL,SEK,0.4244,0.3404,High,Low,True,CRITICAL: dangerous downgrade,True
+ISIC_5308020,MEL,SEK,0.4174,0.4167,High,Low,True,CRITICAL: dangerous downgrade,True
+ISIC_9288942,ACK,SCC,0.4142,0.0855,Moderate,High,True,upgraded (errs safe),False
+ISIC_1753547,NEV,MEL,0.4136,0.0968,Low,High,True,upgraded (errs safe),True
+ISIC_4389317,NEV,MEL,0.4132,0.3766,Low,High,True,upgraded (errs safe),True
+ISIC_5913990,BCC,ACK,0.4105,0.1378,High,Moderate,True,upgraded (errs safe),True
+ISIC_7475784,NEV,SEK,0.4088,0.3004,Low,Low,True,same risk tier (advice still correct),True
+ISIC_7286209,ACK,SCC,0.3974,0.2984,Moderate,High,True,upgraded (errs safe),True
+ISIC_0471652,SEK,MEL,0.3913,0.2846,Low,High,True,upgraded (errs safe),True
+ISIC_6144631,BCC,SCC,0.3799,0.3537,High,High,True,same risk tier (advice still correct),True
+ISIC_0948938,ACK,SCC,0.3788,0.1489,Moderate,High,True,upgraded (errs safe),False
+ISIC_7475912,ACK,SCC,0.3781,0.248,Moderate,High,True,upgraded (errs safe),True
+ISIC_6814138,SEK,MEL,0.3775,0.3055,Low,High,True,upgraded (errs safe),True
+ISIC_5250526,BCC,SCC,0.3724,0.3645,High,High,True,same risk tier (advice still correct),True
+ISIC_0024226,MEL,SCC,0.3698,0.2057,High,High,True,same risk tier (advice still correct),True
+ISIC_6344718,MEL,SEK,0.3553,0.1139,High,Low,True,CRITICAL: dangerous downgrade,False
+ISIC_9607783,BCC,ACK,0.3524,0.19,High,Moderate,True,upgraded (errs safe),True
+ISIC_5954368,SEK,NEV,0.3256,0.2427,Low,Low,True,same risk tier (advice still correct),True
+ISIC_1451803,SEK,BCC,0.3196,0.1754,Low,High,True,upgraded (errs safe),True
+ISIC_0024286,BCC,MEL,0.316,0.1529,High,High,True,same risk tier (advice still correct),False

@@ -1,0 +1,271 @@
+{
+  "model_evaluated": "frozen PanDerm_Base_LP + FusionHead (checkpoints/risk_head.pt) - the deployed configuration",
+  "split": {
+    "train": 2170,
+    "val": 469,
+    "test": 465,
+    "grouping": "by lesion_id"
+  },
+  "leakage_checks": {
+    "lesion_ids_shared_train_test": 0,
+    "identical_image_paths_shared": 0,
+    "test_images_with_train_cosine_gt_0.99": 2,
+    "max_test_to_train_cosine": 1.0,
+    "mean_test_to_train_cosine": 0.9697607159614563
+  },
+  "class_distribution_test": {
+    "NEV": 95,
+    "SEK": 83,
+    "ACK": 93,
+    "BCC": 87,
+    "SCC": 32,
+    "MEL": 75
+  },
+  "overall": {
+    "n_samples": 465,
+    "accuracy": 0.6731182795698925,
+    "balanced_accuracy": 0.6634851049691809,
+    "top3_accuracy": 0.9741935483870968,
+    "macro_f1": 0.6521768697436088,
+    "weighted_f1": 0.6865317414442805,
+    "macro_precision": 0.6663271863000123,
+    "macro_recall": 0.6634851049691809,
+    "macro_roc_auc_ovr": 0.9373457028224822,
+    "macro_pr_auc": 0.7381399268966828,
+    "cohens_kappa": 0.6065464261857048,
+    "matthews_corrcoef": 0.6101420835140445
+  },
+  "binary_benign_vs_malignant": {
+    "definition": "malignant/premalignant = MEL, BCC, SCC, ACK",
+    "roc_auc": 0.9416278432447246,
+    "pr_auc": 0.9603717162997075,
+    "accuracy_at_0.5": 0.8688172043010752
+  },
+  "calibration": {
+    "expected_calibration_error_10bin": 0.05742754244035289,
+    "mean_brier_score_ovr": 0.06966721887389819,
+    "mean_confidence": 0.6732301115989685,
+    "accuracy": 0.6731182795698925,
+    "overconfidence_gap": 0.00011183202907605327,
+    "bins": [
+      {
+        "bin_centre": 0.05,
+        "accuracy": null,
+        "mean_confidence": null,
+        "n": 0
+      },
+      {
+        "bin_centre": 0.15000000000000002,
+        "accuracy": null,
+        "mean_confidence": null,
+        "n": 0
+      },
+      {
+        "bin_centre": 0.25,
+        "accuracy": 1.0,
+        "mean_confidence": 0.2224780023097992,
+        "n": 1
+      },
+      {
+        "bin_centre": 0.35000000000000003,
+        "accuracy": 0.1875,
+        "mean_confidence": 0.36096280813217163,
+        "n": 16
+      },
+      {
+        "bin_centre": 0.45,
+        "accuracy": 0.3835616438356164,
+        "mean_confidence": 0.45805850625038147,
+        "n": 73
+      },
+      {
+        "bin_centre": 0.55,
+        "accuracy": 0.4925373134328358,
+        "mean_confidence": 0.5475673675537109,
+        "n": 67
+      },
+      {
+        "bin_centre": 0.6500000000000001,
+        "accuracy": 0.6382978723404256,
+        "mean_confidence": 0.6540128588676453,
+        "n": 94
+      },
+      {
+        "bin_centre": 0.75,
+        "accuracy": 0.7634408602150538,
+        "mean_confidence": 0.7468823790550232,
+        "n": 93
+      },
+      {
+        "bin_centre": 0.8500000000000001,
+        "accuracy": 0.95,
+        "mean_confidence": 0.8489039540290833,
+        "n": 80
+      },
+      {
+        "bin_centre": 0.95,
+        "accuracy": 1.0,
+        "mean_confidence": 0.9287618398666382,
+        "n": 41
+      }
+    ]
+  },
+  "abstention": {
+    "threshold": 0.5,
+    "rate": 0.1935483870967742,
+    "accuracy_when_confident": 0.7493333333333333,
+    "accuracy_when_abstaining": 0.35555555555555557
+  },
+  "per_class": {
+    "NEV": {
+      "support": 95,
+      "precision": 0.7777777777777778,
+      "recall_sensitivity": 0.6631578947368421,
+      "specificity": 0.9513513513513514,
+      "f1": 0.7159090909090908,
+      "false_positive_rate": 0.04864864864864865,
+      "false_negative_rate": 0.3368421052631579,
+      "roc_auc_ovr": 0.948421052631579,
+      "pr_auc": 0.8346461496008873,
+      "tp": 63,
+      "fp": 18,
+      "fn": 32,
+      "tn": 352
+    },
+    "SEK": {
+      "support": 83,
+      "precision": 0.7125,
+      "recall_sensitivity": 0.6867469879518072,
+      "specificity": 0.9397905759162304,
+      "f1": 0.6993865030674846,
+      "false_positive_rate": 0.060209424083769635,
+      "false_negative_rate": 0.3132530120481928,
+      "roc_auc_ovr": 0.9246199457515928,
+      "pr_auc": 0.7812127032944404,
+      "tp": 57,
+      "fp": 23,
+      "fn": 26,
+      "tn": 359
+    },
+    "ACK": {
+      "support": 93,
+      "precision": 0.8985507246376812,
+      "recall_sensitivity": 0.6666666666666666,
+      "specificity": 0.9811827956989247,
+      "f1": 0.7654320987654322,
+      "false_positive_rate": 0.01881720430107527,
+      "false_negative_rate": 0.3333333333333333,
+      "roc_auc_ovr": 0.9558908544340385,
+      "pr_auc": 0.8941323607094044,
+      "tp": 62,
+      "fp": 7,
+      "fn": 31,
+      "tn": 365
+    },
+    "BCC": {
+      "support": 87,
+      "precision": 0.7125,
+      "recall_sensitivity": 0.6551724137931034,
+      "specificity": 0.9391534391534392,
+      "f1": 0.6826347305389221,
+      "false_positive_rate": 0.06084656084656084,
+      "false_negative_rate": 0.3448275862068966,
+      "roc_auc_ovr": 0.9492185124369033,
+      "pr_auc": 0.7685088966043813,
+      "tp": 57,
+      "fp": 23,
+      "fn": 30,
+      "tn": 355
+    },
+    "SCC": {
+      "support": 32,
+      "precision": 0.28125,
+      "recall_sensitivity": 0.5625,
+      "specificity": 0.8937644341801386,
+      "f1": 0.375,
+      "false_positive_rate": 0.10623556581986143,
+      "false_negative_rate": 0.4375,
+      "roc_auc_ovr": 0.8961460739030024,
+      "pr_auc": 0.37311577238008675,
+      "tp": 18,
+      "fp": 46,
+      "fn": 14,
+      "tn": 387
+    },
+    "MEL": {
+      "support": 75,
+      "precision": 0.6153846153846154,
+      "recall_sensitivity": 0.7466666666666667,
+      "specificity": 0.9102564102564102,
+      "f1": 0.674698795180723,
+      "false_positive_rate": 0.08974358974358974,
+      "false_negative_rate": 0.25333333333333335,
+      "roc_auc_ovr": 0.9497777777777778,
+      "pr_auc": 0.7772236787908968,
+      "tp": 56,
+      "fp": 35,
+      "fn": 19,
+      "tn": 355
+    }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "NEV",
+      "SEK",
+      "ACK",
+      "BCC",
+      "SCC",
+      "MEL"
+    ],
+    "counts": [
+      [
+        63,
+        10,
+        0,
+        1,
+        0,
+        21
+      ],
+      [
+        6,
+        57,
+        4,
+        2,
+        2,
+        12
+      ],
+      [
+        0,
+        6,
+        62,
+        7,
+        18,
+        0
+      ],
+      [
+        0,
+        0,
+        3,
+        57,
+        25,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        13,
+        18,
+        0
+      ],
+      [
+        12,
+        6,
+        0,
+        0,
+        1,
+        56
+      ]
+    ]
+  }
+}

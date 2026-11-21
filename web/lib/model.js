@@ -202,17 +202,24 @@ export async function predict(input, meta) {
   const nPatch = raw.length;
   const relevance = Float32Array.from(raw);
 
-  // Percentile normalisation: min/max stretches background noise across the
-  // whole colour ramp and buries the signal.
+  // Percentile floor only: the bottom half is background, and stretching from
+  // the true minimum spreads that noise across the whole colour ramp.
+  //
+  // The top used to be clipped at p99 as well, to tame the spikes the old
+  // max-fusion rollout put on ViT artifact tokens. That clip flattened
+  // everything above p99 to exactly 1.0, so the brightest point became a tie
+  // broken arbitrarily -- and with the artifact spikes now gone it only costs
+  // accuracy. Scored against expert masks, p99 gives Pointing 0.220 and
+  // removing it gives 0.267; dropping the 1.2 gamma as well gives 0.273, which
+  // matches the unnormalised map, so the display no longer loses anything.
   const sorted = Float32Array.from(relevance).sort();
   const pick = (q) => sorted[Math.min(sorted.length - 1,
     Math.max(0, Math.round(q * (sorted.length - 1))))];
   const lo = pick(0.50);
-  const hi = pick(0.99);
+  const hi = sorted[sorted.length - 1];
   const span = Math.max(1e-9, hi - lo);
   for (let i = 0; i < relevance.length; i++) {
-    const v = Math.min(1, Math.max(0, (relevance[i] - lo) / span));
-    relevance[i] = Math.pow(v, 1.2);
+    relevance[i] = Math.min(1, Math.max(0, (relevance[i] - lo) / span));
   }
 
   return {

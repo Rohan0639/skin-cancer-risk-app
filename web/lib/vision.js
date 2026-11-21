@@ -145,17 +145,21 @@ export function toLab(rgba, w, h) {
  * Run the configured quality checks. Mirrors src/quality/image_quality.py.
  * @returns {{passed:boolean, checks:Array, reason:string}}
  */
-export function assessQuality(rgba, w, h, cfg, segFound) {
+export function assessQuality(rgba, w, h, cfg, segFound, origW, origH) {
   const g = luma(rgba, w, h);
   const m = mean(g), s = std(g);
   const lap = laplacianVar(g, w, h);
   const checks = [];
 
-  const resOk = w >= cfg.minWidth && h >= cfg.minHeight;
+  // Judge resolution on the photo the user supplied, not on the downscaled
+  // copy we work from. Measuring the working image failed any frame wider than
+  // 320/224, so a perfectly good 1200x900 photo was called too small.
+  const rw = origW || w, rh = origH || h;
+  const resOk = rw >= cfg.minWidth && rh >= cfg.minHeight;
   checks.push({
-    name: 'resolution', passed: resOk, value: Math.min(w, h),
+    name: 'resolution', passed: resOk, value: Math.min(rw, rh),
     message: resOk ? 'Photo quality looks good.'
-      : `The photo is too small (${w}x${h} pixels). Please use at least ${cfg.minWidth}x${cfg.minHeight} and do not crop it down.`
+      : `The photo is too small (${rw}x${rh} pixels). Please use at least ${cfg.minWidth}x${cfg.minHeight} and do not crop it down.`
   });
 
   const blurOk = lap >= cfg.blurMin;
@@ -188,8 +192,16 @@ export function assessQuality(rgba, w, h, cfg, segFound) {
   });
 
   const failed = checks.filter((c) => !c.passed);
+  // A failed framing check only means the lesion outline could not be traced,
+  // which degrades the ABCDE notes. The other four mean the pixels themselves
+  // cannot support a diagnosis, so the result must be withheld.
+  const BLOCKING = new Set(['resolution', 'blur', 'brightness', 'contrast']);
+  const blockers = failed.filter((c) => BLOCKING.has(c.name));
   return {
     passed: failed.length === 0,
+    usable: blockers.length === 0,
+    blockers: blockers.map((c) => c.name),
+    blockReason: blockers.map((c) => c.message).join(' '),
     checks,
     reason: failed.length === 0
       ? 'Photo quality looks good.'

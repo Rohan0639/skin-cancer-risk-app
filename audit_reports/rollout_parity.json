@@ -1,0 +1,11 @@
+{
+  "n_images": 40,
+  "fp32_mb": 327,
+  "int8_mb": 85,
+  "tokens_max_abs_diff": 0.0,
+  "tokens_mean_abs_diff": 0.0,
+  "pooled_embedding_max_abs_diff": 0.0,
+  "rollout_max_abs_diff_normalised": 0.8234262466430664,
+  "rollout_mean_abs_diff_normalised": 0.6153147652745247,
+  "interpretation": "tokens/embedding diffs at 1e-5 or below mean the classification path is numerically unchanged; the rollout diff should be LARGE, since that is the branch that was fixed."
+}

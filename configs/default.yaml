@@ -58,6 +58,18 @@ labels:
     SCC: Squamous cell carcinoma
     MEL: Melanoma
 
+  # What kind of lesion each diagnosis is, in the words a patient needs. The
+  # risk tier says what to DO; this says what the thing IS. Without it the app
+  # can name "Basal cell carcinoma" and "High risk" without ever using the word
+  # cancer, which a reader may not connect.
+  diagnosis_categories:
+    NEV: Benign
+    SEK: Benign
+    ACK: Pre-cancerous
+    BCC: Skin cancer
+    SCC: Skin cancer
+    MEL: Skin cancer
+
   diagnosis_descriptions:
     NEV: An ordinary mole. Very common and usually harmless.
     SEK: A benign, warty growth that becomes more common with age. Harmless.

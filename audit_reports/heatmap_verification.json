@@ -1,0 +1,41 @@
+{
+  "n_images": 120,
+  "grid": {
+    "patch_count": [
+      196
+    ],
+    "grid_side": [
+      14
+    ],
+    "expected": "196 patches = 14x14, from 224/16",
+    "pass": true
+  },
+  "ties_at_peak": {
+    "old_norm_mean_patches_at_max": 2.0,
+    "old_norm_max": 2,
+    "new_norm_mean_patches_at_max": 1.0,
+    "new_norm_max": 1,
+    "pass": true,
+    "note": "Under the old p99 ceiling several patches flattened to 1.0, so the 'hottest' pixel was chosen by array order. The new normalisation leaves a single unique maximum."
+  },
+  "clipping": {
+    "old_norm_mean_patches_at_ceiling": 2.0,
+    "new_norm_mean_patches_at_ceiling": 1.0,
+    "pass": true,
+    "note": "New normalisation puts exactly one patch at 1.0, by construction."
+  },
+  "alignment": {
+    "distinct_source_sizes": 1,
+    "square_images": 0,
+    "non_square_images": 120,
+    "mean_iou_non_square": 0.3347352041789763,
+    "mean_iou_square": null,
+    "random_baseline_iou": 0.214,
+    "pass": true,
+    "note": "A mis-mapped grid would collapse IoU to chance, and would break on non-square frames first. It does not: the model sees a square 224x224 and the display stretches photo and heatmap by the same factors, so the linear mapping holds."
+  },
+  "rgb_handling": {
+    "note": "Heatmap is written into an ImageData RGBA buffer and composited over the photo canvas. Channel order is RGBA throughout; there is no BGR path anywhere in the browser pipeline.",
+    "pass": true
+  }
+}

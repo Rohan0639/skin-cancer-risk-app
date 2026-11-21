@@ -1,0 +1,221 @@
+{
+  "production": {
+    "original": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Melanoma\n41%",
+        "Mole (melanocytic nevus)\n40%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "upscaled 1200x900": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n45%",
+        "Melanoma\n36%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "downscaled 320x240": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Melanoma\n43%",
+        "Mole (melanocytic nevus)\n38%",
+        "Seborrhoeic keratosis\n7%"
+      ],
+      "canvases": 2
+    },
+    "square 448x448": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n47%",
+        "Melanoma\n35%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "wide 16:9 800x450": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n45%",
+        "Melanoma\n36%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "tall 3:4 480x640": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n44%",
+        "Melanoma\n36%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "bright +40%": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n34%",
+        "Melanoma\n30%",
+        "Squamous cell carcinoma\n14%"
+      ],
+      "canvases": 2
+    },
+    "dim -40%": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Melanoma\n40%",
+        "Mole (melanocytic nevus)\n40%",
+        "Seborrhoeic keratosis\n8%"
+      ],
+      "canvases": 2
+    },
+    "camera-like 1920 q85": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n45%",
+        "Melanoma\n37%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "_console_errors": []
+  },
+  "staging": {
+    "original": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Melanoma\n41%",
+        "Mole (melanocytic nevus)\n40%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "upscaled 1200x900": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n45%",
+        "Melanoma\n36%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "downscaled 320x240": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Melanoma\n43%",
+        "Mole (melanocytic nevus)\n38%",
+        "Seborrhoeic keratosis\n7%"
+      ],
+      "canvases": 2
+    },
+    "square 448x448": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n47%",
+        "Melanoma\n35%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "wide 16:9 800x450": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n45%",
+        "Melanoma\n36%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "tall 3:4 480x640": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n44%",
+        "Melanoma\n36%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "bright +40%": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n34%",
+        "Melanoma\n30%",
+        "Squamous cell carcinoma\n14%"
+      ],
+      "canvases": 2
+    },
+    "dim -40%": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Melanoma\n40%",
+        "Mole (melanocytic nevus)\n40%",
+        "Seborrhoeic keratosis\n8%"
+      ],
+      "canvases": 2
+    },
+    "camera-like 1920 q85": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "High risk",
+      "advice": "See a dermatologist promptly. Do not wait for it to change f",
+      "alts": [
+        "Mole (melanocytic nevus)\n45%",
+        "Melanoma\n37%",
+        "Squamous cell carcinoma\n7%"
+      ],
+      "canvases": 2
+    },
+    "_console_errors": []
+  },
+  "camera_staging": {
+    "camera capture": {
+      "kicker": "NOT CONFIDENT",
+      "headline": "Moderate risk",
+      "advice": "Book a non-urgent appointment with a doctor or dermatologist",
+      "alts": [
+        "Seborrhoeic keratosis\n54%",
+        "Mole (melanocytic nevus)\n24%",
+        "Melanoma\n9%"
+      ],
+      "canvases": 2
+    },
+    "_console_errors": []
+  },
+  "identical_classification": "9/9"
+}

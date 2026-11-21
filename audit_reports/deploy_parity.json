@@ -1,0 +1,17 @@
+{
+  "n_images": 465,
+  "comparison": "deployed int8 (old rollout) vs new int8 (fixed rollout)",
+  "pooled_embedding_max_abs_diff": 0.0,
+  "logits_max_abs_diff": 0.0,
+  "softmax_max_abs_diff": 0.0,
+  "predicted_class_agreement": "465/465",
+  "risk_tier_agreement": "465/465",
+  "verdict": "IDENTICAL",
+  "quantisation_cost_fp32_vs_int8": {
+    "note": "Pre-existing property of int8 dynamic quantisation, NOT introduced by the rollout fix: old and new int8 tokens are bit-identical, so the deployed model carries the same cost.",
+    "pooled_embedding_max_abs_diff": 0.6120352745056152,
+    "softmax_max_abs_diff": 0.41771814227104187,
+    "predicted_class_agreement": "413/465",
+    "risk_tier_agreement": "424/465"
+  }
+}

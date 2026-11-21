@@ -11,7 +11,11 @@ export const CFG = {
   mean: [0.485, 0.456, 0.406],
   std: [0.229, 0.224, 0.225],
   quality: {
-    minWidth: 224, minHeight: 224, blurMin: 60,
+    // blurMin 15: clean photos measure a median of 174 on this metric, while
+    // the blur that halves melanoma recall measures 2. At 15 the gate stops
+    // 100% of that blur and only 1.5% of good photos; the old 60 stopped
+    // 18.5% of good photos for no measured benefit.
+    minWidth: 224, minHeight: 224, blurMin: 15,
     brightnessMin: 40, brightnessMax: 215, contrastMin: 5
   },
   abcde: {
@@ -211,6 +215,7 @@ export function buildReport({ probs, classes, abcde, quality, change, focusRatio
   const head = getHead() || {};
   const names = head.names || {};
   const descs = head.descriptions || {};
+  const cats = head.categories || {};
   const riskOf = head.risk_of || {};
   const recs = head.recommendations || CFG.recommendations;
 
@@ -273,13 +278,17 @@ export function buildReport({ probs, classes, abcde, quality, change, focusRatio
   // Ranked alternatives: a 6-way call at ~70% accuracy should never be shown
   // as a single confident answer.
   const ranked = classes
-    .map((c, i) => ({ code: c, name: names[c] || c, p: probs[i], risk: riskOf[c] }))
+    .map((c, i) => ({ code: c, name: names[c] || c, p: probs[i],
+                      risk: riskOf[c], category: cats[c] || '' }))
     .sort((a, b) => b.p - a.p);
 
   return {
     diagnosis: code,
     diagnosisName: names[code] || code,
     diagnosisDescription: descs[code] || '',
+    // What the lesion IS (Benign / Pre-cancerous / Skin cancer), as distinct
+    // from the tier, which says what to do about it.
+    diagnosisCategory: cats[code] || '',
     diagnosisConfidence: probs[top],
     ranked,
     level, modelLevel, confidence,
@@ -299,7 +308,8 @@ export async function analyse(img, { age, sex, site, frameWidthMm, prevImg }) {
   const full = rasterise(img, W, H);
 
   const seg = cv.segment(full.data, W, H);
-  const quality = cv.assessQuality(full.data, W, H, CFG.quality, seg.found);
+  const quality = cv.assessQuality(full.data, W, H, CFG.quality, seg.found,
+                                   img.naturalWidth, img.naturalHeight);
 
   const meta = encodeMetadata(age, sex, site);
   const out = await predict(preprocess(img), meta);
