@@ -1,0 +1,62 @@
+{
+  "real_run": {
+    "present": true,
+    "cards": 7,
+    "sections": 6,
+    "cta": true,
+    "firstOpen": true,
+    "canvases": 2,
+    "verdict": "Mole (melanocytic nevus)"
+  },
+  "branches": {
+    "NEV": {
+      "cards": 7,
+      "banned": [],
+      "missing_disclaimers": [],
+      "names_dx": true,
+      "text_len": 12317
+    },
+    "SEK": {
+      "cards": 7,
+      "banned": [],
+      "missing_disclaimers": [],
+      "names_dx": true,
+      "text_len": 12289
+    },
+    "ACK": {
+      "cards": 7,
+      "banned": [],
+      "missing_disclaimers": [],
+      "names_dx": true,
+      "text_len": 12443
+    },
+    "BCC": {
+      "cards": 7,
+      "banned": [],
+      "missing_disclaimers": [],
+      "names_dx": true,
+      "text_len": 11990
+    },
+    "SCC": {
+      "cards": 7,
+      "banned": [],
+      "missing_disclaimers": [],
+      "names_dx": true,
+      "text_len": 12012
+    },
+    "MEL": {
+      "cards": 7,
+      "banned": [],
+      "missing_disclaimers": [],
+      "names_dx": true,
+      "text_len": 12310
+    },
+    "ABSTAIN": {
+      "cards": 7,
+      "banned": [],
+      "missing_disclaimers": [],
+      "names_dx": false,
+      "text_len": 11690
+    }
+  }
+}

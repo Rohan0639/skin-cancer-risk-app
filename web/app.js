@@ -2,6 +2,7 @@
 
 import { analyse } from './lib/pipeline.js';
 import { loadModel, isLoaded } from './lib/model.js';
+import { renderEducation } from './lib/education.js';
 
 // Model files carry a content hash: they are served immutable, so without one
 // a browser keeps the previous model forever and silently pairs a stale head
@@ -260,6 +261,7 @@ function render(result) {
       keratosis, actinic keratosis, basal cell carcinoma, squamous cell carcinoma
       and melanoma. Anything else — including rarer cancers — will be given one
       of these labels in error.</p>
+    ${renderEducation(report, uncertain)}
     <div class="row" style="margin-top:1rem">
       <button id="again">Check another photo</button>
     </div>`;

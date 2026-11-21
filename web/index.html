@@ -16,6 +16,7 @@
     --low:#13794a; --low-bg:#e7f6ee;
     --mod:#9a5b00; --mod-bg:#fdf1de;
     --high:#b3261e; --high-bg:#fdecea;
+    --edu-accent:#0e7490; --edu-soft:#ecf7f9; --edu-line:#bfdfe5;
     --r:14px;
   }
   @media (prefers-color-scheme:dark){ :root:not([data-theme=light]){
@@ -25,6 +26,7 @@
     --low:#4ade80; --low-bg:#10281c;
     --mod:#fbbf24; --mod-bg:#2b2113;
     --high:#f87171; --high-bg:#2c1614;
+    --edu-accent:#4ec4d3; --edu-soft:#102a30; --edu-line:#1e4850;
     color-scheme:dark;
   }}
   :root[data-theme=dark]{
@@ -34,6 +36,7 @@
     --low:#4ade80; --low-bg:#10281c;
     --mod:#fbbf24; --mod-bg:#2b2113;
     --high:#f87171; --high-bg:#2c1614;
+    --edu-accent:#4ec4d3; --edu-soft:#102a30; --edu-line:#1e4850;
     color-scheme:dark;
   }
   *{box-sizing:border-box}
@@ -94,6 +97,65 @@
   .verdict.high .vn{color:var(--high)}
   .vd{font-size:.92rem;color:var(--ink-2);margin:0}
   .vr{margin:.6rem 0 0;font-size:.95rem;font-weight:600}
+
+  /* --- patient education section ----------------------------------------- */
+  .edu{margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--line)}
+  .edu-title{font-size:1.12rem;font-weight:700;margin:0 0 .3rem;
+    letter-spacing:-.015em;color:var(--ink)}
+  .edu-intro{margin:0 0 1rem;font-size:.84rem;color:var(--ink-3);line-height:1.5}
+  .edu-sec{font-size:.7rem;font-weight:700;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--edu-accent);margin:1.2rem 0 .5rem}
+  .edu-result{background:var(--edu-soft);border:1px solid var(--edu-line);
+    border-radius:11px;padding:.85rem .95rem;font-size:.9rem;line-height:1.55}
+  .edu-result p{margin:0 0 .55rem} .edu-result p:last-child{margin-bottom:0}
+
+  .edu-card{background:var(--card);border:1px solid var(--line);
+    border-radius:11px;margin-bottom:.5rem;overflow:hidden}
+  .edu-card summary{display:flex;gap:.6rem;align-items:flex-start;
+    padding:.75rem .9rem;cursor:pointer;font-weight:600;font-size:.92rem;
+    list-style:none;line-height:1.4}
+  .edu-card summary::-webkit-details-marker{display:none}
+  .edu-card summary::after{content:'+';margin-left:auto;flex:none;
+    color:var(--edu-accent);font-weight:700;font-size:1.1rem;line-height:1}
+  .edu-card[open] summary::after{content:'\2212'}
+  .edu-card summary:hover{background:var(--soft)}
+  .edu-card summary:focus-visible{outline:2px solid var(--edu-accent);
+    outline-offset:-2px}
+  .edu-n{flex:none;width:1.35rem;height:1.35rem;border-radius:50%;
+    background:var(--edu-accent);color:var(--card);font-size:.72rem;
+    font-weight:700;display:grid;place-items:center;margin-top:.05rem}
+  .edu-body{padding:0 .9rem .9rem;font-size:.87rem;line-height:1.6;
+    color:var(--ink-2);border-top:1px solid var(--line)}
+  .edu-body p{margin:.7rem 0 0} .edu-body b{color:var(--ink)}
+  .edu-body ul{margin:.5rem 0 0;padding-left:1.15rem}
+  .edu-body li{margin:.25rem 0}
+  .edu-stage li{margin:.4rem 0}
+  .edu-tx li{margin:.45rem 0}
+
+  .edu-flag{background:var(--mod-bg);border-left:3px solid var(--mod);
+    border-radius:0 8px 8px 0;padding:.6rem .75rem;color:var(--ink-2)}
+  .edu-note{color:var(--ink-3);font-size:.84rem}
+  .edu-klass{display:inline-block;font-size:.72rem;font-weight:700;
+    letter-spacing:.05em;text-transform:uppercase;padding:.18rem .5rem;
+    border-radius:5px;border:1px solid currentColor}
+  .edu-benign{color:var(--low)} .edu-precancerous{color:var(--mod)}
+  .edu-malignant{color:var(--high)}
+
+  .edu-scroll{overflow-x:auto;margin-top:.7rem}
+  .edu-table{width:100%;border-collapse:collapse;font-size:.83rem;min-width:19rem}
+  .edu-table th{text-align:left;font-size:.68rem;text-transform:uppercase;
+    letter-spacing:.07em;color:var(--ink-3);padding:.4rem .5rem;
+    border-bottom:1px solid var(--line)}
+  .edu-table td{padding:.45rem .5rem;border-bottom:1px solid var(--line);
+    vertical-align:top}
+  .edu-table tr:last-child td{border-bottom:0}
+  .edu-table td:first-child{font-weight:600;color:var(--ink);white-space:nowrap}
+
+  .edu-cta{margin-top:1.1rem;background:var(--edu-soft);
+    border:1px solid var(--edu-accent);border-radius:11px;padding:.85rem .95rem;
+    font-size:.9rem;color:var(--ink)}
+  .edu-cta p{margin:.35rem 0 0;font-size:.85rem;color:var(--ink-2);line-height:1.55}
+  .edu-src{margin:.9rem 0 0;font-size:.74rem;color:var(--ink-3);line-height:1.45}
 
   /* Shown instead of a result when the photo cannot support a diagnosis. */
   .retake{background:var(--mod-bg);border:1px solid var(--mod);border-radius:12px;
