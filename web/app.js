@@ -248,8 +248,13 @@ $('run').addEventListener('click', async () => {
   btn.textContent = 'Analysing…';
   try {
     await ensureModel();
+    // An empty age box means "unknown", not zero. Number('') is 0, which is a
+    // perfectly valid age as far as encodeMetadata is concerned, so the
+    // missing-age flag would never be set and the model would be told this
+    // lesion belongs to a newborn.
+    const ageRaw = $('age').value.trim();
     const result = await analyse(state.img, {
-      age: Number($('age').value),
+      age: ageRaw === '' ? NaN : Number(ageRaw),
       sex: $('sex').value,
       site: $('site').value,
       frameWidthMm: 0,

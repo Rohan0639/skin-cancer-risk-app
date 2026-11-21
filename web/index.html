@@ -100,6 +100,7 @@
     padding:.3rem 0;font-size:.9rem;border-bottom:1px solid rgba(128,128,128,.18)}
   .alts li:last-child{border-bottom:0}
   .alts b{font-variant-numeric:tabular-nums}
+  .hint{margin:.6rem 0 0;font-size:.76rem;color:var(--ink-3);line-height:1.45}
   .scope{margin:.9rem 0 0;font-size:.78rem;color:var(--ink-3);line-height:1.45}
   .pair{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:.9rem}
   .pair figure{margin:0}
@@ -152,7 +153,7 @@
     </div>
 
     <div class="fields">
-      <div><label for="age">Age</label><input type="number" id="age" value="45" min="0" max="110"></div>
+      <div><label for="age">Age</label><input type="number" id="age" placeholder="—" min="0" max="110"></div>
       <div><label for="sex">Sex</label>
         <select id="sex">
           <option value="unknown" selected>—</option>
@@ -161,15 +162,19 @@
         </select></div>
       <div><label for="site">Body area</label>
         <select id="site">
-          <option value="trunk" selected>Trunk</option>
+          <option value="unknown" selected>—</option>
+          <option value="trunk">Trunk</option>
           <option value="head_neck">Head / neck</option>
           <option value="upper_extremity">Arm / hand</option>
           <option value="lower_extremity">Leg / foot</option>
           <option value="palms_soles">Palm / sole</option>
           <option value="genital">Genital</option>
-          <option value="unknown">Not sure</option>
         </select></div>
     </div>
+
+    <p class="hint">Age and body area change the result a great deal. Fill them
+      in if you know them, and leave them blank if you do not — a guess is worse
+      than nothing here.</p>
 
     <div class="row" style="margin-top:.85rem">
       <button class="primary" id="run" disabled>Analyse</button>
